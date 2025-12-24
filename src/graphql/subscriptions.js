@@ -76,3 +76,48 @@ export const onDeleteBooking = /* GraphQL */ `
     }
   }
 `;
+export const onCreatePart = /* GraphQL */ `
+  subscription OnCreatePart($filter: ModelSubscriptionPartFilterInput) {
+    onCreatePart(filter: $filter) {
+      id
+      categoryKey
+      categoryName
+      name
+      price
+      isFixed
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onUpdatePart = /* GraphQL */ `
+  subscription OnUpdatePart($filter: ModelSubscriptionPartFilterInput) {
+    onUpdatePart(filter: $filter) {
+      id
+      categoryKey
+      categoryName
+      name
+      price
+      isFixed
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onDeletePart = /* GraphQL */ `
+  subscription OnDeletePart($filter: ModelSubscriptionPartFilterInput) {
+    onDeletePart(filter: $filter) {
+      id
+      categoryKey
+      categoryName
+      name
+      price
+      isFixed
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;

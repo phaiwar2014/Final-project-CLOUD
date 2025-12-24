@@ -7,7 +7,14 @@
       "mode": "AMAZON_COGNITO_USER_POOLS",
       "cognitoUserPoolId": "authrepairshop698a2f6b"
     },
-    "additionalAuthTypes": [],
+    "additionalAuthTypes": [
+      {
+        "mode": "API_KEY",
+        "expirationTime": 7,
+        "apiKeyExpirationDate": "2025-12-31T15:24:18.515Z",
+        "keyDescription": ""
+      }
+    ],
     "conflictResolution": {}
   }
 }

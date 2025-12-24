@@ -1,3 +1,4 @@
+# ตารางเก็บข้อมูลการจอง (Booking)
 type Booking @model @auth(rules: [{ allow: owner }]) {
   id: ID!
   customerName: String!
@@ -6,9 +7,20 @@ type Booking @model @auth(rules: [{ allow: owner }]) {
   carYear: String!
   licensePlate: String!
   mileage: Int!
-  selectedItems: String! # เก็บเป็น JSON String ของรายการที่เลือก
+  selectedItems: String!
   totalPrice: Float!
   bookingDate: AWSDate!
   bookingTime: AWSTime!
   status: String
+}
+
+# --- ส่วนที่เพิ่มใหม่: ตารางเก็บสินค้า/อะไหล่ ---
+# allow: public อนุญาตให้ทุกคนอ่านได้ (เพื่อให้หน้าเว็บดึงไปโชว์)
+type Part @model @auth(rules: [{ allow: public }, { allow: private }]) {
+  id: ID!
+  categoryKey: String!    # รหัสหมวดหมู่ (เอาไว้จับคู่กับ Logic) เช่น engineOil
+  categoryName: String!   # ชื่อหมวดหมู่ที่โชว์ เช่น "น้ำมันเครื่อง"
+  name: String!           # ชื่อสินค้า เช่น "Eneos X"
+  price: Int!             # ราคา
+  isFixed: Boolean!       # เป็นของบังคับเลือกหรือไม่ (true/false)
 }

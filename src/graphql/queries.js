@@ -53,3 +53,41 @@ export const listBookings = /* GraphQL */ `
     }
   }
 `;
+export const getPart = /* GraphQL */ `
+  query GetPart($id: ID!) {
+    getPart(id: $id) {
+      id
+      categoryKey
+      categoryName
+      name
+      price
+      isFixed
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listParts = /* GraphQL */ `
+  query ListParts(
+    $filter: ModelPartFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listParts(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        categoryKey
+        categoryName
+        name
+        price
+        isFixed
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
