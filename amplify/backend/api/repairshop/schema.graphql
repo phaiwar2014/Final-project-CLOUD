@@ -1,0 +1,14 @@
+type Booking @model @auth(rules: [{ allow: owner }]) {
+  id: ID!
+  customerName: String!
+  phoneNumber: String!
+  carBrand: String!
+  carYear: String!
+  licensePlate: String!
+  mileage: Int!
+  selectedItems: String! # เก็บเป็น JSON String ของรายการที่เลือก
+  totalPrice: Float!
+  bookingDate: AWSDate!
+  bookingTime: AWSTime!
+  status: String
+}

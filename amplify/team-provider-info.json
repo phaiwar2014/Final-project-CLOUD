@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-repairshop-dev-e2b49-authRole",
+      "UnauthRoleArn": "arn:aws:iam::639140327528:role/amplify-repairshop-dev-e2b49-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::639140327528:role/amplify-repairshop-dev-e2b49-authRole",
+      "Region": "ap-southeast-2",
+      "DeploymentBucketName": "amplify-repairshop-dev-e2b49-deployment",
+      "UnauthRoleName": "amplify-repairshop-dev-e2b49-unauthRole",
+      "StackName": "amplify-repairshop-dev-e2b49",
+      "StackId": "arn:aws:cloudformation:ap-southeast-2:639140327528:stack/amplify-repairshop-dev-e2b49/da94e140-e0c3-11f0-96ba-0a49cb941d8b",
+      "AmplifyAppId": "d3rlpgtu031ciq"
+    },
+    "categories": {
+      "auth": {
+        "repairshop698a2f6b": {}
+      },
+      "api": {
+        "repairshop": {}
+      }
+    }
+  }
+}
