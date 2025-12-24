@@ -367,7 +367,7 @@ function GarageApp({ signOut, user }) {
           </div>
         </nav>
         <div className="flex-grow flex flex-col items-center justify-center p-4">
-          <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการครบวงจร</h1>
+          <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop</h1>
           <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-8 py-3 rounded-lg text-xl font-bold shadow hover:bg-orange-600 flex gap-2 transition transform hover:scale-105">
             <Calendar/> จองคิวเลย
           </button>
