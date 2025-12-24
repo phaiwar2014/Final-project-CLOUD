@@ -3,7 +3,7 @@ import { Amplify } from 'aws-amplify';
 import { Authenticator } from '@aws-amplify/ui-react';
 import { generateClient } from 'aws-amplify/api';
 import '@aws-amplify/ui-react/styles.css';
-import { Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, Database, Trash2, Plus, X, ArrowLeft } from 'lucide-react';
+import { Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, Database, Trash2, Plus, X, ArrowLeft, Lock, Filter, Clock } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
 import * as mutations from './graphql/mutations';
@@ -19,6 +19,13 @@ try {
 }
 
 const client = generateClient();
+
+// --- 🔒 กำหนดรายชื่อผู้ดูแลระบบ (Admin) ---
+const ADMIN_LIST = [
+    'karn',           
+    'aj', 
+    'phai'            
+];
 
 // --- ข้อมูลสำหรับเติมลง Database อัตโนมัติ (Seed Data) ---
 const INITIAL_SEED_DATA = [
@@ -40,15 +47,15 @@ const INITIAL_SEED_DATA = [
   // หมวดน้ำมันเกียร์
   { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'Aisin AFW+', price: 950, isFixed: false },
   { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'MG Authentic', price: 2700, isFixed: false },
-  // ของบังคับ (Fixed Items)
-  { categoryKey: 'brakeFluid', categoryName: 'น้ำมันเบรค', name: 'น้ำมันเบรคมาตรฐาน', price: 250, isFixed: true },
-  { categoryKey: 'drainWasher', categoryName: 'แหวนรองถ่ายน้ำมันเครื่อง', name: 'แหวนรองแท้', price: 10, isFixed: true },
-  { categoryKey: 'gearFilter', categoryName: 'กรองน้ำมันเกียร์', name: 'กรองเกียร์แท้', price: 840, isFixed: true },
-  { categoryKey: 'gearOring', categoryName: 'โอริงกรองน้ำมันเกียร์', name: 'โอริงแท้', price: 10, isFixed: true },
-  { categoryKey: 'gearGasket', categoryName: 'ประเก็นอ่างน้ำมันเกียร์', name: 'ประเก็นแท้', price: 245, isFixed: true },
-  { categoryKey: 'gearDrainWasher', categoryName: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์', name: 'แหวนรองน๊อตถ่ายฯ', price: 50, isFixed: true },
-  { categoryKey: 'gearFillWasher', categoryName: 'แหวนรองเติมน้ำมันเกียร์', name: 'แหวนรองเติมฯ', price: 64, isFixed: true },
-  { categoryKey: 'fuelFilter', categoryName: 'กรองน้ำมันเชื้อเพลิง', name: 'กรองเชื้อเพลิง', price: 500, isFixed: true },
+  // ของที่เคยบังคับ (ตอนนี้ปลดล็อคให้เลือกได้แล้ว)
+  { categoryKey: 'brakeFluid', categoryName: 'น้ำมันเบรค', name: 'น้ำมันเบรคมาตรฐาน', price: 250, isFixed: false },
+  { categoryKey: 'drainWasher', categoryName: 'แหวนรองถ่ายน้ำมันเครื่อง', name: 'แหวนรองแท้', price: 10, isFixed: false },
+  { categoryKey: 'gearFilter', categoryName: 'กรองน้ำมันเกียร์', name: 'กรองเกียร์แท้', price: 840, isFixed: false },
+  { categoryKey: 'gearOring', categoryName: 'โอริงกรองน้ำมันเกียร์', name: 'โอริงแท้', price: 10, isFixed: false },
+  { categoryKey: 'gearGasket', categoryName: 'ประเก็นอ่างน้ำมันเกียร์', name: 'ประเก็นแท้', price: 245, isFixed: false },
+  { categoryKey: 'gearDrainWasher', categoryName: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์', name: 'แหวนรองน๊อตถ่ายฯ', price: 50, isFixed: false },
+  { categoryKey: 'gearFillWasher', categoryName: 'แหวนรองเติมน้ำมันเกียร์', name: 'แหวนรองเติมฯ', price: 64, isFixed: false },
+  { categoryKey: 'fuelFilter', categoryName: 'กรองน้ำมันเชื้อเพลิง', name: 'กรองเชื้อเพลิง', price: 500, isFixed: false },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -58,14 +65,14 @@ const CATEGORY_OPTIONS = [
     { key: 'acFilter', name: 'กรองแอร์' },
     { key: 'sparkPlug', name: 'หัวเทียน' },
     { key: 'gearOil', name: 'น้ำมันเกียร์' },
-    { key: 'brakeFluid', name: 'น้ำมันเบรค (Fixed)' },
-    { key: 'drainWasher', name: 'แหวนรองถ่ายน้ำมันเครื่อง (Fixed)' },
-    { key: 'gearFilter', name: 'กรองน้ำมันเกียร์ (Fixed)' },
-    { key: 'gearOring', name: 'โอริงกรองน้ำมันเกียร์ (Fixed)' },
-    { key: 'gearGasket', name: 'ประเก็นอ่างน้ำมันเกียร์ (Fixed)' },
-    { key: 'gearDrainWasher', name: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์ (Fixed)' },
-    { key: 'gearFillWasher', name: 'แหวนรองเติมน้ำมันเกียร์ (Fixed)' },
-    { key: 'fuelFilter', name: 'กรองน้ำมันเชื้อเพลิง (Fixed)' },
+    { key: 'brakeFluid', name: 'น้ำมันเบรค' },
+    { key: 'drainWasher', name: 'แหวนรองถ่ายน้ำมันเครื่อง' },
+    { key: 'gearFilter', name: 'กรองน้ำมันเกียร์' },
+    { key: 'gearOring', name: 'โอริงกรองน้ำมันเกียร์' },
+    { key: 'gearGasket', name: 'ประเก็นอ่างน้ำมันเกียร์' },
+    { key: 'gearDrainWasher', name: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์' },
+    { key: 'gearFillWasher', name: 'แหวนรองเติมน้ำมันเกียร์' },
+    { key: 'fuelFilter', name: 'กรองน้ำมันเชื้อเพลิง' },
 ];
 
 const MILEAGE_RULES = {
@@ -88,10 +95,17 @@ function GarageApp({ signOut, user }) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [data, setData] = useState({ mileage: '', carBrand: '', carYear: '', licensePlate: '', selectedParts: {}, date: '', time: '' });
   
+  // Slot Checking State
+  const [slotStatus, setSlotStatus] = useState(null); // { morning: {used, available, remaining}, afternoon: {...} }
+  const [checkingSlots, setCheckingSlots] = useState(false);
+
   // Admin State
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '' });
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL'); 
 
-  // ใช้ useCallback เพื่อป้องกันการสร้างฟังก์ชันใหม่ทุกครั้งที่ render
+  const isAdmin = ADMIN_LIST.includes(user?.username) || 
+                  (user?.attributes?.email && ADMIN_LIST.includes(user.attributes.email));
+
   const fetchPartsAndAutoInit = useCallback(async () => {
     try {
       if (!config) return; 
@@ -99,12 +113,9 @@ function GarageApp({ signOut, user }) {
       let partData = await client.graphql({ query: queries.listParts });
       let rawParts = partData.data.listParts.items;
       
-      // LOGIC: ถ้า Database ว่างเปล่า ให้เติมข้อมูลอัตโนมัติทันที
       if (rawParts.length === 0) {
         console.log("Database ว่างเปล่า... กำลังติดตั้งข้อมูลเริ่มต้นอัตโนมัติ...");
         setIsInitializing(true);
-        
-        // Seed ข้อมูล
         try {
             for (const item of INITIAL_SEED_DATA) {
                 await client.graphql({
@@ -113,12 +124,10 @@ function GarageApp({ signOut, user }) {
                 });
             }
             console.log("Seeding complete. Fetching data again...");
-            // ดึงข้อมูลใหม่อีกครั้งหลังจาก Seed เสร็จ
             partData = await client.graphql({ query: queries.listParts });
             rawParts = partData.data.listParts.items;
         } catch (seedError) {
             console.error("Auto seed failed:", seedError);
-            alert("เกิดปัญหาในการเตรียมข้อมูลสินค้า: " + seedError.message);
         }
       }
 
@@ -126,37 +135,97 @@ function GarageApp({ signOut, user }) {
       setIsInitializing(false);
 
       const formattedCatalog = {};
-      
       rawParts.forEach(part => {
         if (!formattedCatalog[part.categoryKey]) {
           formattedCatalog[part.categoryKey] = {
             name: part.categoryName,
-            fixed: part.isFixed,
+            fixed: false, 
             options: [],
-            price: part.isFixed ? part.price : 0 
+            price: 0 
           };
         }
-        
-        // เก็บทุกรายการไว้ใน options เสมอ เพื่อให้หน้า Admin เห็นครบทุกอัน (แม้จะชื่อซ้ำ)
-        // แต่สำหรับหน้า Select (User) เราจะกรองซ้ำทีหลัง หรือใช้ Logic เดิม
         formattedCatalog[part.categoryKey].options.push({
             id: part.id, 
             name: part.name,
             price: part.price
         });
       });
-
       setPartsCatalog(formattedCatalog);
     } catch (err) {
       console.error("Error fetching parts:", err);
       setIsInitializing(false);
     }
-  }, []); // dependency array ว่างเปล่าเพราะใช้ค่าคงที่ภายนอกทั้งหมด
+  }, []); 
 
-  // 1. โหลดข้อมูลสินค้าเมื่อเข้าเว็บ (Mount)
   useEffect(() => {
     fetchPartsAndAutoInit();
-  }, [fetchPartsAndAutoInit]); // ใส่ dependency ได้แล้วเพราะครอบด้วย useCallback
+  }, [fetchPartsAndAutoInit]);
+
+  // --- Capacity Checking Function ---
+  const checkAvailability = async (selectedDate) => {
+    setCheckingSlots(true);
+    setSlotStatus(null);
+    try {
+        if(!config) return;
+
+        // ดึงข้อมูลการจองทั้งหมดของวันนั้น
+        const response = await client.graphql({
+            query: queries.listBookings,
+            variables: { 
+                filter: { 
+                    bookingDate: { eq: selectedDate },
+                    status: { ne: "CANCELLED" } // ไม่นับรายการที่ยกเลิก
+                } 
+            }
+        });
+        
+        const bookings = response.data.listBookings.items;
+        
+        // คำนวณชั่วโมงที่ใช้ไปแล้วในแต่ละรอบ
+        let morningUsed = 0;
+        let afternoonUsed = 0;
+
+        bookings.forEach(b => {
+            const rule = MILEAGE_RULES[b.mileage];
+            const duration = rule ? rule.hours : 0;
+            // 08:00 คือรอบเช้า
+            if (b.bookingTime.startsWith('08')) morningUsed += duration;
+            // 13:00 คือรอบบ่าย
+            if (b.bookingTime.startsWith('13')) afternoonUsed += duration;
+        });
+
+        const currentServiceDuration = MILEAGE_RULES[data.mileage]?.hours || 0;
+        const MAX_CAPACITY = 4; // ชั่วโมงสูงสุดต่อรอบ
+
+        setSlotStatus({
+            morning: {
+                used: morningUsed,
+                available: (morningUsed + currentServiceDuration) <= MAX_CAPACITY,
+                remaining: MAX_CAPACITY - morningUsed,
+                max: MAX_CAPACITY
+            },
+            afternoon: {
+                used: afternoonUsed,
+                available: (afternoonUsed + currentServiceDuration) <= MAX_CAPACITY,
+                remaining: MAX_CAPACITY - afternoonUsed,
+                max: MAX_CAPACITY
+            }
+        });
+
+    } catch (error) {
+        console.error("Error checking availability:", error);
+    } finally {
+        setCheckingSlots(false);
+    }
+  };
+
+  const handleDateChange = (e) => {
+      const selectedDate = e.target.value;
+      setData({...data, date: selectedDate, time: ''});
+      if(selectedDate) {
+          checkAvailability(selectedDate);
+      }
+  };
 
   // --- Admin Functions ---
   const handleAddPart = async (e) => {
@@ -165,15 +234,13 @@ function GarageApp({ signOut, user }) {
     setLoading(true);
 
     const categoryInfo = CATEGORY_OPTIONS.find(c => c.key === newPart.categoryKey);
-    const isFixedItem = newPart.categoryKey.includes('Fixed') || 
-                        ['brakeFluid','drainWasher','gearFilter','gearOring','gearGasket','gearDrainWasher','gearFillWasher','fuelFilter'].includes(newPart.categoryKey);
-
+    
     const input = {
         categoryKey: newPart.categoryKey,
-        categoryName: categoryInfo ? categoryInfo.name.replace(' (Fixed)', '') : 'อื่นๆ',
+        categoryName: categoryInfo ? categoryInfo.name : 'อื่นๆ',
         name: newPart.name,
         price: parseInt(newPart.price),
-        isFixed: isFixedItem
+        isFixed: false 
     };
 
     try {
@@ -183,7 +250,7 @@ function GarageApp({ signOut, user }) {
         });
         alert('เพิ่มสินค้าเรียบร้อย!');
         setNewPart({ categoryKey: 'engineOil', name: '', price: '' });
-        fetchPartsAndAutoInit(); // โหลดข้อมูลใหม่
+        fetchPartsAndAutoInit(); 
     } catch (err) {
         alert('Error adding part: ' + err.message);
     } finally {
@@ -199,7 +266,7 @@ function GarageApp({ signOut, user }) {
             query: mutations.deletePart,
             variables: { input: { id } }
         });
-        fetchPartsAndAutoInit(); // โหลดข้อมูลใหม่
+        fetchPartsAndAutoInit(); 
     } catch (err) {
         alert('Error deleting part: ' + err.message);
     } finally {
@@ -229,16 +296,8 @@ function GarageApp({ signOut, user }) {
     Object.keys(data.selectedParts).forEach(k => {
       const cat = partsCatalog[k];
       if (!cat) return;
-
-      if (cat.fixed) {
-        // กรณี Fixed ราคาจะมาจากตัวหมวดหมู่ (ซึ่งจริงๆควรมาจาก Item ตัวแรกในหมวดนั้นถ้าใน DB)
-        // เพื่อความชัวร์ ดึงราคาจาก Option ตัวแรกที่เจอในหมวด Fixed
-        const fixedItem = cat.options[0];
-        if(fixedItem) partsPrice += fixedItem.price;
-      } else {
-        const selectedOption = cat.options.find(o => o.id === data.selectedParts[k]);
-        if (selectedOption) partsPrice += selectedOption.price;
-      }
+      const selectedOption = cat.options.find(o => o.id === data.selectedParts[k]);
+      if (selectedOption) partsPrice += selectedOption.price;
     });
     
     const labor = MILEAGE_RULES[data.mileage].hours * 300;
@@ -248,19 +307,16 @@ function GarageApp({ signOut, user }) {
   const submitBooking = async () => {
     setLoading(true);
     const total = calcTotal();
+    
+    // บันทึกเวลาเป็น 08:00 หรือ 13:00 ตามรอบที่เลือก
     const formattedTime = data.time.length === 5 ? `${data.time}:00` : data.time;
 
     const readableItems = {};
     Object.keys(data.selectedParts).forEach(key => {
         const cat = partsCatalog[key];
         if(cat){
-             if(cat.fixed) {
-                const fixedItem = cat.options[0];
-                if(fixedItem) readableItems[cat.name] = `${cat.name} (${fixedItem.price})`;
-            } else {
-                const opt = cat.options.find(o => o.id === data.selectedParts[key]);
-                if(opt) readableItems[cat.name] = `${opt.name} (${opt.price})`;
-            }
+             const opt = cat.options.find(o => o.id === data.selectedParts[key]);
+             if(opt) readableItems[cat.name] = `${opt.name} (${opt.price})`;
         }
     });
 
@@ -301,9 +357,12 @@ function GarageApp({ signOut, user }) {
         <nav className="bg-slate-900 text-white p-4 flex justify-between items-center">
           <div className="font-bold text-lg flex gap-2"><Wrench className="text-orange-500"/> AutoServe</div>
           <div className="flex gap-2">
-             <button onClick={() => setPage('admin')} className="bg-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-600 flex items-center gap-1">
-                <Database size={14}/> จัดการสินค้า (Admin)
-             </button>
+             {/* 🔒 แสดงปุ่มนี้เฉพาะเมื่อเป็น Admin เท่านั้น */}
+             {isAdmin && (
+                <button onClick={() => setPage('admin')} className="bg-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-600 flex items-center gap-1 border border-gray-500">
+                    <Database size={14}/> จัดการสินค้า (Admin)
+                </button>
+             )}
              <button onClick={signOut} className="bg-red-600 px-3 py-1 rounded text-sm">Logout</button>
           </div>
         </nav>
@@ -318,6 +377,19 @@ function GarageApp({ signOut, user }) {
   }
 
   if (page === 'admin') {
+    if (!isAdmin) {
+        setTimeout(() => setPage('landing'), 2000);
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <div className="text-center p-8 bg-white rounded shadow-lg">
+                    <Lock className="w-16 h-16 text-red-500 mx-auto mb-4"/>
+                    <h2 className="text-2xl font-bold text-red-600">Access Denied</h2>
+                    <p className="text-gray-600 mt-2">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <div className="bg-white p-4 shadow sticky top-0 z-10 flex gap-4 items-center rounded-lg mb-4">
@@ -366,37 +438,95 @@ function GarageApp({ signOut, user }) {
                     </form>
                 </div>
 
-                {/* List รายการสินค้า */}
-                <div className="space-y-4">
-                    {Object.keys(partsCatalog).map(catKey => {
-                        const cat = partsCatalog[catKey];
-                        return (
-                            <div key={catKey} className="bg-white rounded-lg shadow overflow-hidden">
-                                <div className="bg-slate-100 p-3 font-bold border-b flex justify-between">
-                                    <span>{cat.name}</span>
-                                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">{catKey}</span>
-                                </div>
-                                <div className="divide-y">
-                                    {cat.options.length === 0 && <div className="p-3 text-gray-400 text-sm text-center">ไม่มีรายการ</div>}
-                                    {cat.options.map(item => (
-                                        <div key={item.id} className="p-3 flex justify-between items-center hover:bg-gray-50">
-                                            <div>
-                                                <div className="font-medium text-gray-800">{item.name}</div>
-                                                <div className="text-sm text-gray-500">{item.price} บาท</div>
-                                            </div>
-                                            <button 
-                                                onClick={() => handleDeletePart(item.id)}
-                                                className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50 transition"
-                                                title="ลบรายการนี้"
-                                            >
-                                                <Trash2 size={18}/>
-                                            </button>
+                {/* List รายการสินค้า - ปรับปรุงใหม่ให้มี Filter */}
+                <div>
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 className="font-bold text-lg text-slate-700 flex items-center gap-2">
+                            <Database size={20}/> รายการสินค้าปัจจุบัน
+                        </h3>
+                        {/* 🔍 ตัวกรองหมวดหมู่ */}
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <Filter size={18} className="text-gray-500"/>
+                            <select 
+                                className="p-2 border rounded border-gray-300 shadow-sm w-full md:min-w-[250px] bg-white"
+                                value={adminCategoryFilter}
+                                onChange={(e) => setAdminCategoryFilter(e.target.value)}
+                            >
+                                <option value="ALL">-- แสดงทุกหมวดหมู่ --</option>
+                                {CATEGORY_OPTIONS.map(opt => (
+                                    <option key={opt.key} value={opt.key}>{opt.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {Object.keys(partsCatalog)
+                            .filter(catKey => adminCategoryFilter === 'ALL' || catKey === adminCategoryFilter)
+                            .map(catKey => {
+                                const cat = partsCatalog[catKey];
+                                if (!cat) return null;
+                                return (
+                                    <div key={catKey} className="bg-white rounded-lg shadow overflow-hidden border border-gray-100">
+                                        <div className="bg-slate-100 p-3 font-bold border-b flex justify-between items-center">
+                                            <span className="text-slate-800">{cat.name}</span>
+                                            <span className="text-xs text-gray-500 bg-white border px-2 py-1 rounded">{catKey}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )
-                    })}
+                                        <div className="divide-y divide-gray-100">
+                                            {(() => {
+                                                // Logic ใหม่: รวมรายการที่ชื่อและราคาซ้ำกันให้แสดงบรรทัดเดียว พร้อมบอกจำนวน
+                                                const groupedItems = [];
+                                                const map = new Map();
+                                                cat.options.forEach(item => {
+                                                    const key = `${item.name}-${item.price}`;
+                                                    if(map.has(key)){
+                                                        const existing = map.get(key);
+                                                        existing.count++;
+                                                        existing.ids.push(item.id);
+                                                    } else {
+                                                        const newItem = { ...item, count: 1, ids: [item.id] };
+                                                        map.set(key, newItem);
+                                                        groupedItems.push(newItem);
+                                                    }
+                                                });
+
+                                                if (groupedItems.length === 0) return <div className="p-4 text-gray-400 text-sm text-center italic">ไม่มีรายการในหมวดนี้</div>;
+
+                                                return groupedItems.map(item => (
+                                                    <div key={item.ids[0]} className="p-3 flex justify-between items-center hover:bg-orange-50 transition duration-150">
+                                                        <div>
+                                                            <div className="font-medium text-gray-800 flex items-center gap-2">
+                                                                {item.name}
+                                                                {item.count > 1 && (
+                                                                    <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                                                                        มี {item.count} ชิ้น
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-sm text-gray-500">{item.price} บาท</div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleDeletePart(item.ids[0])} // ลบตัวแรกสุดในกลุ่ม
+                                                            className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
+                                                            title={item.count > 1 ? "ลบออก 1 ชิ้น" : "ลบรายการนี้"}
+                                                        >
+                                                            <Trash2 size={18}/>
+                                                        </button>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                            
+                        {/* กรณีไม่เจอข้อมูลเลยจากการ filter */}
+                        {Object.keys(partsCatalog).filter(catKey => adminCategoryFilter === 'ALL' || catKey === adminCategoryFilter).length === 0 && (
+                             <div className="text-center p-8 text-gray-400 bg-white rounded-lg border border-dashed">
+                                ไม่พบหมวดหมู่สินค้านี้ในระบบ (หรือยังไม่มีสินค้า)
+                             </div>
+                        )}
+                    </div>
                 </div>
 
             </div>
@@ -439,14 +569,7 @@ function GarageApp({ signOut, user }) {
                     const cat = partsCatalog[k];
                     if (!cat) return <div key={k} className="text-red-500 text-xs">ไม่พบข้อมูล: {k}</div>;
 
-                    if (cat.fixed) {
-                         const fixedItem = cat.options[0];
-                         const price = fixedItem ? fixedItem.price : cat.price;
-                         return <div key={k} className="flex justify-between text-sm bg-gray-100 p-2 rounded"><span>{cat.name}</span><b>{price}</b></div>
-                    }
-                    
-                    // กรองชื่อซ้ำสำหรับหน้า User Select (แสดงเฉพาะชื่อที่ไม่ซ้ำ)
-                    // เราจะแสดง options โดยใช้ Map เพื่อกำจัดชื่อซ้ำ
+                    // ปรับแก้: แสดงเป็น Dropdown เสมอ (กรองชื่อซ้ำสำหรับการแสดงผล)
                     const uniqueOptions = [];
                     const map = new Map();
                     cat.options.forEach(item => {
@@ -494,21 +617,120 @@ function GarageApp({ signOut, user }) {
   }
 
   if (page === 'schedule') {
+    const serviceHours = MILEAGE_RULES[data.mileage]?.hours || 0;
+    // คำนวณวันที่ปัจจุบันเพื่อใช้เป็นค่า min ในช่อง input date
+    const today = new Date().toISOString().split('T')[0];
+
     return (
       <div className="min-h-screen bg-gray-50 p-4 pt-10 flex flex-col items-center">
-        <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
-          <div className="flex gap-4 mb-4"><button onClick={() => setPage('select')}>&larr;</button><h2 className="font-bold">เลือกวันเวลา</h2></div>
-          <input type="date" className="w-full p-3 border rounded mb-4" onChange={e => setData({...data, date: e.target.value})}/>
+        <div className="bg-white p-6 rounded shadow-lg w-full max-w-lg">
+          <div className="flex gap-4 mb-6"><button onClick={() => setPage('select')}>&larr;</button><h2 className="font-bold text-xl">เลือกวันและรอบบริการ</h2></div>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-bold text-gray-700 mb-2">1. เลือกวันที่</label>
+            <input 
+                type="date" 
+                min={today} // 🔒 ตั้งค่า min เพื่อห้ามเลือกวันย้อนหลัง
+                className="w-full p-4 border rounded-lg text-lg bg-gray-50" 
+                onChange={handleDateChange} 
+            />
+          </div>
+
+          {/* แสดงผลการเช็คคิวเมื่อเลือกวันที่แล้ว */}
           {data.date && (
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {["08:00","09:00","10:00","11:00","13:00","14:00","15:00","16:00"].map(t => (
-                <button key={t} onClick={() => setData({...data, time: t})} className={`p-2 rounded border ${data.time === t ? 'bg-orange-500 text-white' : 'bg-gray-50 hover:bg-gray-100'}`}>{t}</button>
-              ))}
+            <div className="space-y-4">
+                <div className="text-sm font-bold text-gray-700 mb-2">2. เลือกรอบบริการ (เวลาซ่อม: {serviceHours} ชม.)</div>
+                
+                {checkingSlots ? (
+                    <div className="text-center py-8 text-gray-500 flex flex-col items-center">
+                        <RefreshCw className="animate-spin mb-2"/>
+                        กำลังตรวจสอบตารางงานช่าง...
+                    </div>
+                ) : slotStatus && (
+                    <div className="grid gap-4">
+                        {/* --- รอบเช้า --- */}
+                        <button 
+                            disabled={!slotStatus.morning.available}
+                            onClick={() => setData({...data, time: '08:00'})}
+                            className={`p-4 rounded-xl border-2 text-left transition relative overflow-hidden group
+                                ${data.time === '08:00' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}
+                                ${!slotStatus.morning.available ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'hover:border-orange-300 bg-white'}
+                            `}
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="font-bold text-lg flex items-center gap-2">
+                                    <Clock size={20} className="text-orange-500"/> รอบเช้า (08:00 - 12:00)
+                                </div>
+                                {data.time === '08:00' && <CheckCircle className="text-orange-500" size={24}/>}
+                            </div>
+                            
+                            <div className="text-sm space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">ความจุสูงสุด:</span>
+                                    <span>{slotStatus.morning.max} ชม.</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">จองแล้ว:</span>
+                                    <span>{slotStatus.morning.used} ชม.</span>
+                                </div>
+                                <div className={`flex justify-between font-bold ${slotStatus.morning.available ? 'text-green-600' : 'text-red-500'}`}>
+                                    <span>คงเหลือ:</span>
+                                    <span>{slotStatus.morning.remaining} ชม.</span>
+                                </div>
+                            </div>
+                            
+                            {!slotStatus.morning.available && (
+                                <div className="mt-3 text-xs text-red-500 bg-red-50 p-2 rounded">
+                                    ❌ เต็ม / เวลาไม่พอ (ต้องการ {serviceHours} ชม.)
+                                </div>
+                            )}
+                        </button>
+
+                        {/* --- รอบบ่าย --- */}
+                        <button 
+                            disabled={!slotStatus.afternoon.available}
+                            onClick={() => setData({...data, time: '13:00'})}
+                            className={`p-4 rounded-xl border-2 text-left transition relative overflow-hidden group
+                                ${data.time === '13:00' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}
+                                ${!slotStatus.afternoon.available ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'hover:border-orange-300 bg-white'}
+                            `}
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="font-bold text-lg flex items-center gap-2">
+                                    <Clock size={20} className="text-blue-500"/> รอบบ่าย (13:00 - 17:00)
+                                </div>
+                                {data.time === '13:00' && <CheckCircle className="text-orange-500" size={24}/>}
+                            </div>
+                            
+                            <div className="text-sm space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">ความจุสูงสุด:</span>
+                                    <span>{slotStatus.afternoon.max} ชม.</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">จองแล้ว:</span>
+                                    <span>{slotStatus.afternoon.used} ชม.</span>
+                                </div>
+                                <div className={`flex justify-between font-bold ${slotStatus.afternoon.available ? 'text-green-600' : 'text-red-500'}`}>
+                                    <span>คงเหลือ:</span>
+                                    <span>{slotStatus.afternoon.remaining} ชม.</span>
+                                </div>
+                            </div>
+
+                            {!slotStatus.afternoon.available && (
+                                <div className="mt-3 text-xs text-red-500 bg-red-50 p-2 rounded">
+                                    ❌ เต็ม / เวลาไม่พอ (ต้องการ {serviceHours} ชม.)
+                                </div>
+                            )}
+                        </button>
+                    </div>
+                )}
             </div>
           )}
+
           {data.time && (
-            <button onClick={submitBooking} disabled={loading} className="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700">
-              {loading ? 'Processing...' : 'ยืนยันการจอง'}
+            <button onClick={submitBooking} disabled={loading} className="w-full mt-8 bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 shadow-lg transition transform hover:scale-105">
+              {loading ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการจอง'}
             </button>
           )}
         </div>
