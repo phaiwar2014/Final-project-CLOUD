@@ -8,7 +8,7 @@ import {
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
   LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, 
   DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, 
-  PlayCircle, CheckSquare, AlertTriangle, Package, DollarSign, FileText, X, Save
+  PlayCircle, CheckSquare, AlertTriangle, Package, DollarSign, FileText, X, Save, Settings, Ban
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -100,13 +100,19 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
     const [selectedItems, setSelectedItems] = useState([]);
     const [additionalPartId, setAdditionalPartId] = useState("");
     
-    // แปลงข้อมูล Job เป็น State เมื่อเปิด Modal
     useEffect(() => {
         if (isOpen && job) {
             try {
                 const parsed = JSON.parse(job.selectedItems);
                 let initialItems = [];
-                const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+                // Flatten parts catalog and include categoryName
+                const allParts = [];
+                Object.keys(partsCatalog).forEach(key => {
+                    const cat = partsCatalog[key];
+                    cat.options.forEach(opt => {
+                        allParts.push({ ...opt, categoryName: cat.name });
+                    });
+                });
 
                 if (parsed.ids && Array.isArray(parsed.ids)) {
                     initialItems = parsed.ids.map(id => {
@@ -129,7 +135,13 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
 
     const handleAddItem = () => {
         if (!additionalPartId) return;
-        const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+        const allParts = [];
+        Object.keys(partsCatalog).forEach(key => {
+            const cat = partsCatalog[key];
+            cat.options.forEach(opt => {
+                allParts.push({ ...opt, categoryName: cat.name });
+            });
+        });
         const part = allParts.find(p => p.id === additionalPartId);
         if (part) {
             setSelectedItems([...selectedItems, part]);
@@ -137,7 +149,6 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
         }
     };
 
-    // คำนวณราคาใหม่ (ค่าแรง + ค่าของ)
     const laborCost = (MILEAGE_RULES[job?.mileage]?.hours || 0) * 300;
     const partsCost = selectedItems.reduce((sum, item) => sum + item.price, 0);
     const totalCost = laborCost + partsCost;
@@ -169,7 +180,7 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
                         {selectedItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between items-center p-3 border rounded-xl bg-white hover:border-orange-200">
                                 <div>
-                                    <div className="font-bold text-slate-700">{item.name}</div>
+                                    <div className="font-bold text-slate-700">{item.categoryName} : {item.name}</div>
                                     <div className="text-xs text-slate-400">{item.price} บาท | คงเหลือ: <span className={item.stock < 5 ? "text-red-500 font-bold" : "text-green-600"}>{item.stock}</span></div>
                                 </div>
                                 <button onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 size={18}/></button>
@@ -215,6 +226,65 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
     );
 };
 
+// --- Component: Accounting Close Job Modal (สำหรับบัญชีปรับยอด) ---
+const AccountingCloseModal = ({ job, isOpen, onClose, onConfirmClose }) => {
+    const [adjustedTotal, setAdjustedTotal] = useState(0);
+
+    useEffect(() => {
+        if (job) {
+            setAdjustedTotal(job.totalPrice);
+        }
+    }, [job]);
+
+    if (!isOpen || !job) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
+                 <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> สรุปยอด/ปิดงาน</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                    <div className="bg-gray-50 p-4 rounded-xl text-sm space-y-2">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500">ลูกค้า:</span>
+                            <span className="font-bold">{job.customerName}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-gray-500">ทะเบียน:</span>
+                            <span className="font-bold">{job.licensePlate}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-gray-500">ยอดเดิม:</span>
+                            <span className="font-bold">{job.totalPrice.toLocaleString()}.-</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ยอดชำระสุทธิ (ปรับแก้ได้)</label>
+                        <input 
+                            type="number" 
+                            className="w-full p-3 border-2 border-green-500 rounded-xl text-2xl font-black text-green-700 text-right focus:outline-none focus:ring-4 focus:ring-green-100"
+                            value={adjustedTotal}
+                            onChange={(e) => setAdjustedTotal(parseInt(e.target.value) || 0)}
+                        />
+                         <p className="text-xs text-red-400 mt-1">* เมื่อกดปิดงานแล้วจะไม่สามารถแก้ไขยอดได้อีก</p>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={() => onConfirmClose(job.id, adjustedTotal)}
+                    className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 shadow-lg flex justify-center items-center gap-2"
+                >
+                    <CheckCircle size={18}/> ยืนยันปิดงาน
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // --- Component: Mechanic Job Card ---
 const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
   const { parsedItems, isStockSufficient, insufficientParts } = useMemo(() => {
@@ -224,7 +294,14 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
 
     try {
       const parsed = JSON.parse(job.selectedItems);
-      const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+      // Flatten parts for lookup
+      const allParts = [];
+      Object.keys(partsCatalog).forEach(key => {
+        const cat = partsCatalog[key];
+        cat.options.forEach(opt => {
+            allParts.push({ ...opt, categoryName: cat.name });
+        });
+      });
 
       // Case 1: New Format with IDs
       if (parsed.ids && Array.isArray(parsed.ids)) {
@@ -235,6 +312,7 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
             insufficientParts.push(part.name);
           }
           return {
+            categoryName: part ? part.categoryName : 'Unknown',
             name: part ? part.name : 'Unknown Item',
             price: part ? part.price : 0,
             stock: part ? (part.stock || 0) : null,
@@ -257,6 +335,7 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
           }
 
           return {
+            categoryName: part ? part.categoryName : 'สินค้า',
             name: val,
             price: 0,
             stock: stock,
@@ -285,9 +364,14 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
           <ul className="text-sm space-y-2">
             {parsedItems.map((item, idx) => (
               <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
-                <span className={`text-slate-700 font-medium ${item.isMissing ? 'text-red-500' : ''}`}>{item.name}</span>
+                <span className={`text-slate-700 font-medium ${item.isMissing ? 'text-red-500' : ''}`}>
+                    {/* แก้ไขการแสดงผลตามที่ขอ: หมวดหมู่ : ชื่อสินค้า */}
+                    <span className="text-xs text-gray-400 mr-1">{item.categoryName} :</span> {item.name}
+                </span>
                 {item.stock !== null ? (
                   <span className={`text-[10px] font-bold px-2 py-1 rounded ${item.stock === 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                    {/* เพิ่มช่องว่างตามที่ขอ */}
+                    <span className="inline-block w-4"></span>
                     {item.stock === 0 ? 'ของขาด Stock' : `มีในสต็อก: ${item.stock}`}
                   </span>
                 ) : (
@@ -354,8 +438,14 @@ function GarageApp({ signOut, user }) {
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
   // Accounting UI State (New)
-  const [accountingViewType, setAccountingViewType] = useState('monthly'); // 'daily' or 'monthly'
-  const [accountingDate, setAccountingDate] = useState(new Date().toISOString().substring(0, 7)); // Default current month YYYY-MM
+  const [accountingViewType, setAccountingViewType] = useState('monthly'); 
+  const [accountingDate, setAccountingDate] = useState(new Date().toISOString().substring(0, 7)); 
+  const [accountingModalOpen, setAccountingModalOpen] = useState(false);
+  const [selectedJobForAccounting, setSelectedJobForAccounting] = useState(null);
+
+  // Config UI State (New)
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [newBlockedDate, setNewBlockedDate] = useState('');
 
   const [slotStatus, setSlotStatus] = useState(null);
   const [checkingSlots, setCheckingSlots] = useState(false);
@@ -465,6 +555,8 @@ function GarageApp({ signOut, user }) {
   // --- CAPACITY LOGIC ---
   const checkAvailability = useCallback(async (selectedDate) => {
     if (!selectedDate) return;
+    if (blockedDates.includes(selectedDate)) return; // Don't check if blocked
+
     setCheckingSlots(true);
     setSlotStatus(null); 
     try {
@@ -501,7 +593,7 @@ function GarageApp({ signOut, user }) {
             }
         });
     } catch (e) { console.error(e); } finally { setCheckingSlots(false); }
-  }, [data.mileage]); 
+  }, [data.mileage, blockedDates]); 
 
   useEffect(() => {
     if (page === 'schedule' && data.date) { checkAvailability(data.date); }
@@ -509,16 +601,27 @@ function GarageApp({ signOut, user }) {
 
   const handleDateChange = (e) => {
       const val = e.target.value;
+      if (blockedDates.includes(val)) {
+          alert("ขออภัย วันที่นี้ร้านปิดให้บริการ");
+          return;
+      }
       setData(prev => ({...prev, date: val, time: ''}));
   };
 
   // --- ACTIONS ---
   const handleUpdateStatus = async (id, newStatus) => {
-    // ถ้าจะเริ่มงาน (IN_PROGRESS) ให้เปิด Modal แทน
+    const booking = allBookings.find(b => b.id === id);
+    if (!booking) return;
+
+    // Open Modals based on status
     if (newStatus === 'IN_PROGRESS') {
-        const job = allBookings.find(b => b.id === id);
-        setSelectedJobForMechanic(job);
+        setSelectedJobForMechanic(booking);
         setMechanicModalOpen(true);
+        return;
+    }
+    if (newStatus === 'CLOSED') {
+        setSelectedJobForAccounting(booking);
+        setAccountingModalOpen(true);
         return;
     }
 
@@ -526,41 +629,14 @@ function GarageApp({ signOut, user }) {
 
     setLoading(true);
     try {
-        const updateInput = { id, status: newStatus };
-        
-        // **แก้ไข: ต้องประกาศ booking ก่อนใช้งาน**
-        const booking = allBookings.find(b => b.id === id);
-        if (!booking) throw new Error("Booking not found");
-
-        if (newStatus === 'IN_PROGRESS') {
-            updateInput.mechanicName = user.username; 
-            try {
-                const parsedItems = JSON.parse(booking.selectedItems);
-                if (parsedItems.ids && Array.isArray(parsedItems.ids)) {
-                    const allPartsFlat = [];
-                    Object.values(partsCatalog).forEach(cat => allPartsFlat.push(...cat.options));
-                    const updatePromises = parsedItems.ids.map(async (itemId) => {
-                        const part = allPartsFlat.find(p => p.id === itemId);
-                        if (part) {
-                            const newStock = (part.stock || 0) > 0 ? (part.stock || 0) - 1 : 0;
-                            return client.graphql({ query: mutations.updatePart, variables: { input: { id: itemId, stock: newStock } } });
-                        }
-                    });
-                    await Promise.all(updatePromises);
-                }
-            } catch (stockErr) { console.error("Stock deduction error:", stockErr); }
-        }
-
-        await client.graphql({ query: mutations.updateBooking, variables: { input: updateInput } });
+        await client.graphql({ query: mutations.updateBooking, variables: { input: { id, status: newStatus } } });
         fetchData(); 
     } catch (err) { alert('Error: ' + err.message); } finally { setLoading(false); }
   };
 
-  // 🆕 ฟังก์ชันใหม่: ช่างยืนยันเริ่มงานจาก Modal (ตัดสต็อกตามรายการจริง)
   const handleMechanicStartJob = async (jobId, finalItems, finalPrice) => {
       setLoading(true);
       try {
-          // 1. ตัดสต็อก
           const updatePromises = finalItems.map(async (item) => {
              if (item && item.id) {
                  const currentStock = item.stock || 0;
@@ -573,7 +649,6 @@ function GarageApp({ signOut, user }) {
           });
           await Promise.all(updatePromises);
 
-          // 2. สร้าง JSON ใหม่สำหรับ selectedItems
           const displayObj = {};
           const idsArr = [];
           finalItems.forEach(item => {
@@ -581,7 +656,6 @@ function GarageApp({ signOut, user }) {
               idsArr.push(item.id);
           });
 
-          // 3. อัปเดต Booking
           await client.graphql({
               query: mutations.updateBooking,
               variables: { 
@@ -599,6 +673,30 @@ function GarageApp({ signOut, user }) {
           fetchData();
           alert("เริ่มงานเรียบร้อย! ระบบได้ตัดสต็อกและอัปเดตงานแล้ว");
 
+      } catch (err) {
+          alert("เกิดข้อผิดพลาด: " + err.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  // 🆕 Accounting Close Job
+  const handleAccountingCloseJob = async (jobId, finalPrice) => {
+      setLoading(true);
+      try {
+          await client.graphql({
+              query: mutations.updateBooking,
+              variables: { 
+                  input: { 
+                      id: jobId, 
+                      status: 'CLOSED',
+                      totalPrice: finalPrice
+                  } 
+              }
+          });
+          setAccountingModalOpen(false);
+          fetchData();
+          alert("ปิดงานเรียบร้อย! บันทึกยอดเงินแล้ว");
       } catch (err) {
           alert("เกิดข้อผิดพลาด: " + err.message);
       } finally {
@@ -681,6 +779,18 @@ function GarageApp({ signOut, user }) {
         alert(`🧹 ลบข้อมูลซ้ำเรียบร้อย!`);
         fetchData(); 
     } catch (e) { alert("Error: " + e.message); } finally { setLoading(false); }
+  };
+  
+  // 🆕 Config Handlers
+  const handleBlockDate = () => {
+      if(newBlockedDate && !blockedDates.includes(newBlockedDate)) {
+          setBlockedDates([...blockedDates, newBlockedDate]);
+          setNewBlockedDate('');
+      }
+  };
+
+  const handleUnblockDate = (dateToRemove) => {
+      setBlockedDates(blockedDates.filter(d => d !== dateToRemove));
   };
 
   // --- USER ACTIONS ---
@@ -775,8 +885,8 @@ function GarageApp({ signOut, user }) {
           <div className="font-bold text-xl flex gap-2 items-center"><Wrench className="text-orange-500"/> AutoServe Pro</div>
           <div className="flex gap-2 items-center">
              <div className="hidden md:flex flex-col items-end mr-2 text-xs">
-                <span className="font-bold">{username}</span>
-                <span className="bg-slate-700 px-2 py-0.5 rounded text-orange-400">{userRoleDisplay}</span>
+                <span className="font-bold text-orange-400">{username}</span>
+                <span className="bg-slate-800 px-2 py-0.5 rounded text-gray-300">{userRoleDisplay}</span>
              </div>
              {isStaff && (
                 <button onClick={() => setPage('admin')} className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
@@ -860,17 +970,7 @@ function GarageApp({ signOut, user }) {
   if (page === 'admin') {
     if (!isStaff) return <div className="p-20 text-center">Access Denied</div>;
     
-    // 🟢 ย้าย uniqueDates มาไว้ตรงนี้ เพื่อให้ทุกแท็บมองเห็น
     const uniqueDates = [...new Set(allBookings.map(b => b.bookingDate))].sort().reverse();
-    
-    const filteredAccountingBookings = allBookings.filter(b => {
-        if (!['COMPLETED', 'CLOSED'].includes(b.status)) return false; 
-        if (accountingViewType === 'daily') {
-            return b.bookingDate === accountingDate;
-        } else {
-            return b.bookingDate.startsWith(accountingDate);
-        }
-    });
 
     const filteredBookings = allBookings.filter(b => {
         const matchesSearch = b.customerName.toLowerCase().includes(adminBookingSearch.toLowerCase()) || 
@@ -880,7 +980,17 @@ function GarageApp({ signOut, user }) {
     });
 
     const mechanicJobs = allBookings.filter(b => ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && (adminDateFilter ? b.bookingDate === adminDateFilter : true));
-    const completedJobs = allBookings.filter(b => ['COMPLETED', 'CLOSED'].includes(b.status) && (adminDateFilter ? b.bookingDate === adminDateFilter : true));
+    
+    // Accounting Filter
+    const filteredAccountingBookings = allBookings.filter(b => {
+        if (!['COMPLETED', 'CLOSED'].includes(b.status)) return false; 
+        if (accountingViewType === 'daily') {
+            return b.bookingDate === accountingDate;
+        } else {
+            return b.bookingDate.startsWith(accountingDate);
+        }
+    });
+
     const lowStockItems = getLowStockItems();
 
     return (
@@ -893,12 +1003,20 @@ function GarageApp({ signOut, user }) {
                 onConfirmStart={handleMechanicStartJob}
             />
 
+            <AccountingCloseModal
+                isOpen={accountingModalOpen}
+                onClose={() => setAccountingModalOpen(false)}
+                job={selectedJobForAccounting}
+                onConfirmClose={handleAccountingCloseJob}
+            />
+
             <div className="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md overflow-x-auto">
                 <div className="flex items-center gap-4 min-w-max">
                     <button onClick={() => setPage('landing')} className="p-2 hover:bg-slate-800 rounded-lg"><ArrowLeft/></button>
                     <h2 className="font-bold text-xl">Staff Control Center</h2>
                 </div>
                 <div className="flex bg-slate-800 p-1 rounded-xl min-w-max ml-4">
+                    {/* เมนูสำหรับทุกคนที่เป็น Staff ให้เห็นคิวงาน */}
                     {isStaff && (
                         <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                             <ClipboardList size={18}/> คิวงานลูกค้า
@@ -923,6 +1041,12 @@ function GarageApp({ signOut, user }) {
                                 <AlertTriangle size={18}/> เตือน {lowStockItems.length > 0 && <span className="bg-white text-red-600 px-1.5 rounded-full text-xs">{lowStockItems.length}</span>}
                             </button>
                         </>
+                    )}
+                     {/* 🆕 Config Tab for Admin Only */}
+                    {isAdmin && (
+                        <button onClick={() => setAdminTab('config')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'config' ? 'bg-purple-500 text-white' : 'text-slate-400'}`}>
+                            <Settings size={18}/> ตั้งค่า
+                        </button>
                     )}
                 </div>
             </div>
@@ -1223,6 +1347,35 @@ function GarageApp({ signOut, user }) {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+                
+                {/* --- 6. 🆕 ตั้งค่า (Config) --- */}
+                {adminTab === 'config' && isAdmin && (
+                    <div className="space-y-6">
+                        <div className="bg-purple-50 p-6 rounded-3xl border border-purple-100">
+                             <h3 className="font-black text-purple-800 text-lg flex items-center gap-2 mb-4"><Ban/> ตั้งค่าวันหยุดร้าน (ปิดรับจอง)</h3>
+                             
+                             <div className="flex gap-2 mb-6">
+                                <input 
+                                    type="date" 
+                                    className="p-3 border rounded-xl flex-1 outline-none"
+                                    value={newBlockedDate}
+                                    onChange={(e) => setNewBlockedDate(e.target.value)}
+                                />
+                                <button onClick={handleBlockDate} className="bg-purple-600 text-white px-6 rounded-xl font-bold hover:bg-purple-700">เพิ่มวันหยุด</button>
+                             </div>
+
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {blockedDates.length === 0 && <div className="text-gray-400 text-sm italic col-span-4">ยังไม่ได้กำหนดวันหยุด</div>}
+                                {blockedDates.map(date => (
+                                    <div key={date} className="bg-white p-3 rounded-lg border border-purple-200 flex justify-between items-center text-sm shadow-sm">
+                                        <span className="font-bold text-purple-700">{date}</span>
+                                        <button onClick={() => handleUnblockDate(date)} className="text-red-400 hover:text-red-600"><X size={16}/></button>
+                                    </div>
+                                ))}
+                             </div>
                         </div>
                     </div>
                 )}
