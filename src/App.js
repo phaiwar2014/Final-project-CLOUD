@@ -181,13 +181,13 @@ function GarageApp({ signOut, user }) {
     fetchData();
   }, [fetchData]);
 
-  // --- CAPACITY LOGIC (UPDATED: ใช้ useCallback และ depend on mileage) ---
+  // --- CAPACITY LOGIC ---
 
   const checkAvailability = useCallback(async (selectedDate) => {
     if (!selectedDate) return;
     
     setCheckingSlots(true);
-    setSlotStatus(null); // เคลียร์สถานะเก่าก่อนเช็คใหม่
+    setSlotStatus(null); 
 
     try {
         const resp = await client.graphql({
@@ -208,10 +208,8 @@ function GarageApp({ signOut, user }) {
             if (b.bookingTime.startsWith('13')) afternoonUsed += duration;
         });
 
-        // คำนวณเวลาที่งานปัจจุบันต้องใช้ (ใช้ data.mileage ที่เป็นปัจจุบันเสมอ)
         const currentMileage = parseInt(data.mileage); 
         const currentRule = MILEAGE_RULES[currentMileage];
-        // บังคับให้งานอย่างน้อย 1 ชม. กันพลาด
         const currentTaskHours = (currentRule && currentRule.hours > 0) ? currentRule.hours : 1;
 
         setSlotStatus({
@@ -235,9 +233,8 @@ function GarageApp({ signOut, user }) {
     } finally {
         setCheckingSlots(false);
     }
-  }, [data.mileage]); // ⚠️ สำคัญ: ต้องใส่ dependency นี้เพื่อให้ฟังก์ชันอัปเดตเมื่อระยะทางเปลี่ยน
+  }, [data.mileage]); 
 
-  // Trigger check เมื่อเข้าหน้า schedule หรือมีการเปลี่ยนวันที่/ระยะทาง
   useEffect(() => {
     if (page === 'schedule' && data.date) {
       checkAvailability(data.date);
@@ -246,7 +243,6 @@ function GarageApp({ signOut, user }) {
 
   const handleDateChange = (e) => {
       const val = e.target.value;
-      // อัปเดต state วันที่ก่อน แล้ว useEffect จะไปเรียก checkAvailability เอง
       setData(prev => ({...prev, date: val, time: ''}));
   };
 
@@ -291,9 +287,16 @@ function GarageApp({ signOut, user }) {
             variables: { input: { id } }
         });
         alert("ลบรายการจองเรียบร้อยแล้ว");
-        fetchData(); // โหลดข้อมูลใหม่
+        fetchData(); 
     } catch (err) {
-        alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+        console.error("Delete error:", err);
+        // แสดง Error ที่ชัดเจนขึ้น
+        let msg = err.message;
+        if (!msg && err.errors && err.errors.length > 0) {
+            msg = err.errors[0].message;
+        }
+        if (!msg) msg = JSON.stringify(err);
+        alert('เกิดข้อผิดพลาดในการลบ: ' + msg);
     } finally {
         setLoading(false);
     }
@@ -412,7 +415,6 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
-            {/* แก้ชื่อร้านตามที่คุณต้องการ */}
             <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
             <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4 mx-auto">
@@ -427,7 +429,6 @@ function GarageApp({ signOut, user }) {
   if (page === 'admin') {
     if (!isAdmin) return <div className="p-20 text-center">Access Denied</div>;
     
-    // Logic การกรองข้อมูล: วันที่ และ Search
     const uniqueDates = [...new Set(allBookings.map(b => b.bookingDate))].sort().reverse();
 
     const filteredBookings = allBookings.filter(b => {
