@@ -6,7 +6,8 @@ import '@aws-amplify/ui-react/styles.css';
 import { 
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
-  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud, History, MinusCircle, PlusCircle, Package
+  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, 
+  DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, PlayCircle, CheckSquare
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -24,7 +25,7 @@ try {
 
 const client = generateClient();
 
-// --- 🔒 กำหนดรายชื่อผู้ดูแลระบบ (Admin) ---
+// --- 🔒 กำหนดรายชื่อผู้ดูแลระบบ (รวมช่างด้วย) ---
 const ADMIN_LIST = [
     'phai',           
     'aj', 
@@ -34,7 +35,6 @@ const ADMIN_LIST = [
     'admin@example.com'           
 ];
 
-// เพิ่ม stock เริ่มต้นให้สินค้า
 const INITIAL_SEED_DATA = [
   { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false, stock: 50 },
   { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Shell Helix HX8', price: 1200, isFixed: false, stock: 50 },
@@ -95,7 +95,7 @@ function GarageApp({ signOut, user }) {
   const [loading, setLoading] = useState(false);
   const [partsCatalog, setPartsCatalog] = useState({});
   const [allBookings, setAllBookings] = useState([]);
-  const [userBookings, setUserBookings] = useState([]); // 🆕 เก็บประวัติของ User
+  const [userBookings, setUserBookings] = useState([]); 
   const [isInitializing, setIsInitializing] = useState(false);
   
   // State หลัก
@@ -125,8 +125,7 @@ function GarageApp({ signOut, user }) {
   };
   
   // Admin UI State
-  const [adminTab, setAdminTab] = useState('bookings'); 
-  // เพิ่ม stock ใน state ของ form เพิ่มสินค้า
+  const [adminTab, setAdminTab] = useState('bookings'); // 'bookings', 'parts', 'mechanic'
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
@@ -171,12 +170,10 @@ function GarageApp({ signOut, user }) {
       });
       setPartsCatalog(formattedParts);
 
-      // โหลดข้อมูลการจอง
       const bookingData = await client.graphql({ query: queries.listBookings });
       const items = bookingData.data.listBookings.items;
       setAllBookings(items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
 
-      // กรองเฉพาะของ User เพื่อแสดงในหน้า History
       const myName = user?.attributes?.name || user?.username || "Guest";
       const myHistory = items.filter(b => b.customerName === myName || b.owner === user.username);
       setUserBookings(myHistory.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
@@ -255,7 +252,23 @@ function GarageApp({ signOut, user }) {
       setData(prev => ({...prev, date: val, time: ''}));
   };
 
-  // --- ADMIN ACTIONS ---
+  // --- ADMIN & MECHANIC ACTIONS ---
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    if (!window.confirm(`ยืนยันเปลี่ยนสถานะเป็น ${newStatus}?`)) return;
+    setLoading(true);
+    try {
+        await client.graphql({
+            query: mutations.updateBooking,
+            variables: { input: { id, status: newStatus } }
+        });
+        fetchData(); 
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const handleAddPart = async (e) => {
     e.preventDefault();
@@ -270,7 +283,7 @@ function GarageApp({ signOut, user }) {
                 categoryName: catInfo?.name || 'อื่นๆ', 
                 name: newPart.name, 
                 price: parseInt(newPart.price), 
-                stock: parseInt(newPart.stock) || 0, // บันทึก stock ลง DB
+                stock: parseInt(newPart.stock) || 0,
                 isFixed: false 
             } }
         });
@@ -288,17 +301,15 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert(e.message); }
   };
 
-  // ฟังก์ชันอัปเดตสต็อกสินค้า (เพิ่ม/ลด)
   const handleUpdateStock = async (id, currentStock, change) => {
     const newStock = (currentStock || 0) + change;
-    if (newStock < 0) return; // ห้ามติดลบ
+    if (newStock < 0) return; 
 
     try {
         await client.graphql({
             query: mutations.updatePart,
             variables: { input: { id, stock: newStock } }
         });
-        // อัปเดต state แบบ local เพื่อความรวดเร็ว
         const updatedCatalog = { ...partsCatalog };
         Object.keys(updatedCatalog).forEach(key => {
             const index = updatedCatalog[key].options.findIndex(p => p.id === id);
@@ -309,7 +320,7 @@ function GarageApp({ signOut, user }) {
         setPartsCatalog(updatedCatalog);
     } catch (err) {
         console.error("Update stock error:", err);
-        alert("ไม่สามารถอัปเดตสต็อกได้ (ต้องเพิ่ม field 'stock' ใน schema ก่อน)");
+        alert("ไม่สามารถอัปเดตสต็อกได้");
     }
   };
 
@@ -447,6 +458,16 @@ function GarageApp({ signOut, user }) {
     finally { setLoading(false); }
   };
 
+  // --- HELPER: Parse Items for Mechanic ---
+  const parseSelectedItems = (jsonString) => {
+    try {
+      const items = JSON.parse(jsonString);
+      return Object.entries(items).map(([key, val]) => `${key}: ${val}`);
+    } catch (e) {
+      return ["ไม่สามารถอ่านรายการได้"];
+    }
+  };
+
   // --- VIEWS ---
 
   if (page === 'landing') {
@@ -466,14 +487,12 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
-            {/* แก้ชื่อร้านตามที่คุณต้องการ */}
             <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4">
                 <Calendar size={28}/> จองคิวเลย
                 </button>
-                {/* 🆕 ปุ่มประวัติการจอง */}
                 <button onClick={() => setPage('history')} className="bg-slate-100 text-slate-700 border-2 border-slate-200 px-8 py-5 rounded-2xl text-xl font-bold shadow-sm hover:bg-slate-200 transition flex items-center gap-3">
                 <History size={24}/> ประวัติการจอง
                 </button>
@@ -484,7 +503,6 @@ function GarageApp({ signOut, user }) {
     );
   }
 
-  // 🆕 หน้าประวัติการจองของ User
   if (page === 'history') {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -512,8 +530,16 @@ function GarageApp({ signOut, user }) {
                                         </span>
                                     </div>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                                    {b.status}
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                                    b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 
+                                    b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
+                                    b.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                    b.status === 'COMPLETED' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                    {b.status === 'PENDING' ? 'รอยืนยัน' : 
+                                     b.status === 'CONFIRMED' ? 'ยืนยันแล้ว' :
+                                     b.status === 'IN_PROGRESS' ? 'กำลังซ่อม' :
+                                     b.status === 'COMPLETED' ? 'ซ่อมเสร็จ' : b.status}
                                 </span>
                             </div>
                             
@@ -530,12 +556,15 @@ function GarageApp({ signOut, user }) {
 
                             <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                                 <div className="text-lg font-bold text-slate-900">฿{b.totalPrice.toLocaleString()}</div>
-                                <button 
-                                    onClick={() => handleDeleteBooking(b.id)}
-                                    className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
-                                >
-                                    <Trash2 size={16}/> ยกเลิกการจอง
-                                </button>
+                                {/* อนุญาตให้ลบได้เฉพาะสถานะ PENDING หรือ CONFIRMED */}
+                                {['PENDING', 'CONFIRMED'].includes(b.status) && (
+                                    <button 
+                                        onClick={() => handleDeleteBooking(b.id)}
+                                        className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
+                                    >
+                                        <Trash2 size={16}/> ยกเลิกการจอง
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
@@ -557,6 +586,12 @@ function GarageApp({ signOut, user }) {
         return matchesSearch && matchesDate;
     });
 
+    // กรองเฉพาะงานที่ช่างต้องดู (Confirmed, In Progress)
+    const mechanicJobs = allBookings.filter(b => 
+        ['CONFIRMED', 'IN_PROGRESS'].includes(b.status) &&
+        (adminDateFilter ? b.bookingDate === adminDateFilter : true)
+    );
+
     return (
         <div className="min-h-screen bg-gray-100 pb-20">
             <div className="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
@@ -568,6 +603,9 @@ function GarageApp({ signOut, user }) {
                     <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                         <ClipboardList size={18}/> คิวงานลูกค้า
                     </button>
+                    <button onClick={() => setAdminTab('mechanic')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'mechanic' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
+                        <Briefcase size={18}/> งานช่าง
+                    </button>
                     <button onClick={() => setAdminTab('parts')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'parts' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                         <Database size={18}/> จัดการสินค้า
                     </button>
@@ -575,7 +613,8 @@ function GarageApp({ signOut, user }) {
             </div>
 
             <div className="max-w-6xl mx-auto p-4 md:p-8">
-                {adminTab === 'bookings' ? (
+                {/* --- 1. หน้าคิวงาน (Reception) --- */}
+                {adminTab === 'bookings' && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-blue-500">
@@ -584,7 +623,6 @@ function GarageApp({ signOut, user }) {
                             </div>
                             <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-orange-500 col-span-2">
                                 <div className="flex gap-2">
-                                    {/* 📅 Dropdown เลือกวันที่ */}
                                     <div className="relative w-1/3">
                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
                                         <select 
@@ -593,13 +631,9 @@ function GarageApp({ signOut, user }) {
                                             onChange={e => setAdminDateFilter(e.target.value)}
                                         >
                                             <option value="">-- ทุกวันที่ --</option>
-                                            {uniqueDates.map(date => (
-                                                <option key={date} value={date}>{date}</option>
-                                            ))}
+                                            {uniqueDates.map(date => (<option key={date} value={date}>{date}</option>))}
                                         </select>
                                     </div>
-
-                                    {/* 🔍 ช่องค้นหา */}
                                     <div className="relative w-2/3">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
                                         <input 
@@ -644,28 +678,18 @@ function GarageApp({ signOut, user }) {
                                             </td>
                                             <td className="p-6 text-right font-black text-slate-900">{b.totalPrice.toLocaleString()}.-</td>
                                             <td className="p-6 text-center">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                     {b.status}
                                                 </span>
                                             </td>
                                             <td className="p-6 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    {/* ✅ ปุ่มยืนยัน (แสดงเฉพาะตอน PENDING) */}
                                                     {b.status === 'PENDING' && (
-                                                        <button 
-                                                            onClick={() => handleConfirmBooking(b.id)}
-                                                            className="text-green-500 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition"
-                                                            title="ยืนยันการจอง"
-                                                        >
+                                                        <button onClick={() => handleConfirmBooking(b.id)} className="text-green-500 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition" title="ยืนยันการจอง">
                                                             <CheckCircle size={18}/>
                                                         </button>
                                                     )}
-                                                    {/* 🗑️ ปุ่มลบ */}
-                                                    <button 
-                                                        onClick={() => handleDeleteBooking(b.id)}
-                                                        className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
-                                                        title="ลบรายการจองนี้"
-                                                    >
+                                                    <button onClick={() => handleDeleteBooking(b.id)} className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition" title="ลบรายการจองนี้">
                                                         <Trash2 size={18}/>
                                                     </button>
                                                 </div>
@@ -677,18 +701,76 @@ function GarageApp({ signOut, user }) {
                             {filteredBookings.length === 0 && <div className="p-20 text-center text-slate-300 italic">ไม่พบข้อมูลการจอง</div>}
                         </div>
                     </div>
-                ) : (
+                )}
+
+                {/* --- 2. หน้าช่าง (Mechanic) --- */}
+                {adminTab === 'mechanic' && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-4">
+                            <h3 className="font-bold flex items-center gap-2"><Briefcase/> งานที่รอซ่อม (Confirmed / In Progress)</h3>
+                            <select className="p-2 border rounded-xl text-sm" value={adminDateFilter} onChange={e => setAdminDateFilter(e.target.value)}>
+                                <option value="">-- ทุกวันที่ --</option>
+                                {uniqueDates.map(date => (<option key={date} value={date}>{date}</option>))}
+                            </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {mechanicJobs.length === 0 && <div className="col-span-2 p-10 text-center bg-white rounded-2xl border border-dashed text-gray-400">ไม่มีงานค้าง</div>}
+                            {mechanicJobs.map(job => (
+                                <div key={job.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-600">{job.bookingDate} | {job.bookingTime.substring(0,5)} น.</div>
+                                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${job.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 animate-pulse' : 'bg-green-100 text-green-700'}`}>
+                                                {job.status}
+                                            </div>
+                                        </div>
+                                        <h4 className="text-xl font-black text-slate-800 mb-1">{job.carBrand} ({job.licensePlate})</h4>
+                                        <p className="text-sm text-slate-500 mb-4">เช็คระยะ {job.mileage.toLocaleString()} km</p>
+                                        
+                                        <div className="bg-gray-50 p-4 rounded-xl mb-4">
+                                            <h5 className="font-bold text-xs text-gray-400 uppercase mb-2 flex items-center gap-1"><CheckSquare size={12}/> รายการอะไหล่ที่ต้องเบิก</h5>
+                                            <ul className="text-sm space-y-1">
+                                                {parseSelectedItems(job.selectedItems).map((item, idx) => (
+                                                    <li key={idx} className="flex gap-2 items-start"><span className="text-orange-500">•</span> {item}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 mt-4">
+                                        {job.status === 'CONFIRMED' && (
+                                            <button 
+                                                onClick={() => handleUpdateStatus(job.id, 'IN_PROGRESS')}
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
+                                            >
+                                                <PlayCircle size={18}/> เริ่มงาน
+                                            </button>
+                                        )}
+                                        {job.status === 'IN_PROGRESS' && (
+                                            <button 
+                                                onClick={() => handleUpdateStatus(job.id, 'COMPLETED')}
+                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
+                                            >
+                                                <CheckCircle size={18}/> ปิดงาน (เสร็จสิ้น)
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- 3. จัดการสินค้า (Inventory) --- */}
+                {adminTab === 'parts' && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-red-50 border border-red-200 p-4 rounded-2xl">
                             <div className="flex items-center gap-2 text-red-700 text-sm font-bold">
                                 <RefreshCw size={20}/>
                                 <span>เครื่องมือจัดการฐานข้อมูล (ใช้เมื่อข้อมูลซ้ำ)</span>
                             </div>
-                            <button 
-                                onClick={handleCleanupDuplicates}
-                                disabled={loading}
-                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition"
-                            >
+                            <button onClick={handleCleanupDuplicates} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition">
                                 <Eraser size={16}/> 🧹 ล้างข้อมูลซ้ำ
                             </button>
                         </div>
@@ -710,7 +792,6 @@ function GarageApp({ signOut, user }) {
                                     <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">ราคา (บาท)</label>
                                     <input type="number" className="w-full p-3 bg-gray-50 border rounded-xl" placeholder="0" value={newPart.price} onChange={e => setNewPart({...newPart, price: e.target.value})}/>
                                 </div>
-                                {/* --- STOCK INPUT --- */}
                                 <div>
                                     <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">จำนวนสต็อก</label>
                                     <input type="number" className="w-full p-3 bg-gray-50 border rounded-xl" placeholder="10" value={newPart.stock} onChange={e => setNewPart({...newPart, stock: e.target.value})}/>
@@ -726,7 +807,6 @@ function GarageApp({ signOut, user }) {
                             </select>
                         </div>
                         
-                        {/* --- STOCK LIST UI --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {Object.keys(partsCatalog).filter(k => adminCategoryFilter === 'ALL' || k === adminCategoryFilter).map(k => (
                                 <div key={k} className="bg-white rounded-3xl shadow-sm overflow-hidden">
@@ -742,7 +822,6 @@ function GarageApp({ signOut, user }) {
                                                     <div className="text-xs text-slate-400">{item.price} บาท</div>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    {/* ปุ่มจัดการ Stock */}
                                                     <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                                                         <button onClick={() => handleUpdateStock(item.id, item.stock, -1)} className="text-slate-500 hover:text-red-500"><MinusCircle size={18}/></button>
                                                         <span className="font-bold text-sm w-8 text-center">{item.stock || 0}</span>
@@ -804,7 +883,6 @@ function GarageApp({ signOut, user }) {
                     <input placeholder="ปีจดทะเบียน" className="p-4 bg-gray-50 border-none rounded-xl" value={data.carYear} onChange={e => setData({...data, carYear: e.target.value})}/>
                     <input placeholder="เลขทะเบียนรถ" className="p-4 bg-gray-50 border-none rounded-xl font-bold" value={data.licensePlate} onChange={e => setData({...data, licensePlate: e.target.value})}/>
                     
-                    {/* --- จุดเพิ่ม: ช่องกรอกเบอร์โทรศัพท์ (มีปุ่ม Manual Fetch) --- */}
                     <div className="relative">
                         <input 
                           placeholder="เบอร์โทรศัพท์ติดต่อ" 
