@@ -96,27 +96,24 @@ function GarageApp({ signOut, user }) {
   const [allBookings, setAllBookings] = useState([]);
   const [isInitializing, setIsInitializing] = useState(false);
   
-  // State หลัก: ดึงเบอร์และชื่อจาก Cognito มาใส่เป็นค่าเริ่มต้น
+  // State หลัก
   const [data, setData] = useState({ 
     mileage: '', 
     carBrand: '', 
     carYear: '', 
     licensePlate: '', 
-    phoneNumber: user?.attributes?.phone_number || '', // พยายามดึงเบอร์ตั้งแต่แรก
+    phoneNumber: user?.attributes?.phone_number || '', 
     selectedParts: {}, 
     date: '', 
     time: '' 
   });
 
-  // อัปเดตข้อมูลอัตโนมัติหาก User Profile โหลดช้า หรือเข้ามาทีหลัง
   useEffect(() => {
-    // ถ้าใน State ยังไม่มีเบอร์ แต่ใน Cognito มี -> ให้เอามาใส่
     if (user?.attributes?.phone_number && !data.phoneNumber) {
       setData(prev => ({ ...prev, phoneNumber: user.attributes.phone_number }));
     }
   }, [user, data.phoneNumber]);
 
-  // ฟังก์ชันดึงเบอร์จากโปรไฟล์ด้วยตัวเอง (Manual Fetch)
   const pullPhoneFromProfile = () => {
       if (user?.attributes?.phone_number) {
           setData(prev => ({ ...prev, phoneNumber: user.attributes.phone_number }));
@@ -130,6 +127,7 @@ function GarageApp({ signOut, user }) {
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
+  const [adminDateFilter, setAdminDateFilter] = useState('');
 
   // Capacity Checking State
   const [slotStatus, setSlotStatus] = useState(null);
@@ -145,7 +143,6 @@ function GarageApp({ signOut, user }) {
     try {
       if (!config) return; 
       
-      // 1. โหลดข้อมูลสินค้า
       const partData = await client.graphql({ query: queries.listParts });
       const rawParts = partData.data.listParts.items;
       
@@ -162,38 +159,36 @@ function GarageApp({ signOut, user }) {
         if (!formattedParts[part.categoryKey]) {
           formattedParts[part.categoryKey] = { name: part.categoryName, options: [] };
         }
-        
-        // --- จุดแก้ที่ 1: กรองตัวซ้ำใน Frontend ก่อนแสดงผล (Safety Net) ---
-        // เช็คว่ามีของชื่อนี้ราคาเท่านี้ในลิสต์หรือยัง ถ้ามีแล้วไม่ใส่เพิ่ม
         const isDuplicate = formattedParts[part.categoryKey].options.some(
             o => o.name === part.name && o.price === part.price
         );
-
         if (!isDuplicate) {
             formattedParts[part.categoryKey].options.push(part);
         }
       });
       setPartsCatalog(formattedParts);
 
-      // 2. โหลดข้อมูลการจอง (ถ้าเป็น Admin)
-      if (isAdmin) {
-        const bookingData = await client.graphql({ query: queries.listBookings });
-        const items = bookingData.data.listBookings.items;
-        setAllBookings(items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
-      }
+      const bookingData = await client.graphql({ query: queries.listBookings });
+      const items = bookingData.data.listBookings.items;
+      setAllBookings(items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
+      
     } catch (err) {
       console.error("Fetch error:", err);
     }
-  }, [isAdmin]);
+  }, []); 
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // --- CAPACITY LOGIC ---
+  // --- CAPACITY LOGIC (UPDATED: ใช้ useCallback และ depend on mileage) ---
 
-  const checkAvailability = async (selectedDate) => {
+  const checkAvailability = useCallback(async (selectedDate) => {
+    if (!selectedDate) return;
+    
     setCheckingSlots(true);
+    setSlotStatus(null); // เคลียร์สถานะเก่าก่อนเช็คใหม่
+
     try {
         const resp = await client.graphql({
             query: queries.listBookings,
@@ -205,23 +200,34 @@ function GarageApp({ signOut, user }) {
         let afternoonUsed = 0;
 
         dayBookings.forEach(b => {
-            const duration = MILEAGE_RULES[b.mileage]?.hours || 1;
+            const m = parseInt(b.mileage);
+            const rule = MILEAGE_RULES[m];
+            const duration = rule ? rule.hours : 1; 
+            
             if (b.bookingTime.startsWith('08')) morningUsed += duration;
             if (b.bookingTime.startsWith('13')) afternoonUsed += duration;
         });
 
-        const currentTaskHours = MILEAGE_RULES[data.mileage]?.hours || 0;
+        // คำนวณเวลาที่งานปัจจุบันต้องใช้ (ใช้ data.mileage ที่เป็นปัจจุบันเสมอ)
+        const currentMileage = parseInt(data.mileage); 
+        const currentRule = MILEAGE_RULES[currentMileage];
+        // บังคับให้งานอย่างน้อย 1 ชม. กันพลาด
+        const currentTaskHours = (currentRule && currentRule.hours > 0) ? currentRule.hours : 1;
 
         setSlotStatus({
             morning: {
                 used: morningUsed,
                 available: (morningUsed + currentTaskHours) <= MAX_HOURS_PER_SLOT,
-                remaining: MAX_HOURS_PER_SLOT - morningUsed
+                remaining: MAX_HOURS_PER_SLOT - morningUsed,
+                max: MAX_HOURS_PER_SLOT,
+                needed: currentTaskHours
             },
             afternoon: {
                 used: afternoonUsed,
                 available: (afternoonUsed + currentTaskHours) <= MAX_HOURS_PER_SLOT,
-                remaining: MAX_HOURS_PER_SLOT - afternoonUsed
+                remaining: MAX_HOURS_PER_SLOT - afternoonUsed,
+                max: MAX_HOURS_PER_SLOT,
+                needed: currentTaskHours
             }
         });
     } catch (e) {
@@ -229,12 +235,19 @@ function GarageApp({ signOut, user }) {
     } finally {
         setCheckingSlots(false);
     }
-  };
+  }, [data.mileage]); // ⚠️ สำคัญ: ต้องใส่ dependency นี้เพื่อให้ฟังก์ชันอัปเดตเมื่อระยะทางเปลี่ยน
+
+  // Trigger check เมื่อเข้าหน้า schedule หรือมีการเปลี่ยนวันที่/ระยะทาง
+  useEffect(() => {
+    if (page === 'schedule' && data.date) {
+      checkAvailability(data.date);
+    }
+  }, [page, data.date, checkAvailability]);
 
   const handleDateChange = (e) => {
       const val = e.target.value;
-      setData({...data, date: val, time: ''});
-      if(val) checkAvailability(val);
+      // อัปเดต state วันที่ก่อน แล้ว useEffect จะไปเรียก checkAvailability เอง
+      setData(prev => ({...prev, date: val, time: ''}));
   };
 
   // --- ADMIN ACTIONS ---
@@ -269,23 +282,35 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert(e.message); }
   };
 
-  // --- จุดแก้ที่ 2: ฟังก์ชันล้างข้อมูลซ้ำใน Database ---
-  const handleCleanupDuplicates = async () => {
-    if(!window.confirm("⚠️ คำเตือน: ระบบจะค้นหาและ 'ลบ' สินค้าที่ชื่อและราคาซ้ำกันออกจาก Database ทั้งหมด\n\nยืนยันที่จะทำต่อหรือไม่?")) return;
+  const handleDeleteBooking = async (id) => {
+    if(!window.confirm('ยืนยันการลบรายการจองนี้? ข้อมูลจะถูกลบออกจาก Database ถาวร')) return;
     setLoading(true);
     try {
-        // 1. ดึงข้อมูลทั้งหมดมาตรวจสอบ
+        await client.graphql({
+            query: mutations.deleteBooking,
+            variables: { input: { id } }
+        });
+        alert("ลบรายการจองเรียบร้อยแล้ว");
+        fetchData(); // โหลดข้อมูลใหม่
+    } catch (err) {
+        alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleCleanupDuplicates = async () => {
+    if(!window.confirm("⚠️ คำเตือน: ระบบจะลบสินค้าที่ชื่อและราคาซ้ำกันออก\nยืนยันหรือไม่?")) return;
+    setLoading(true);
+    try {
         const partData = await client.graphql({ query: queries.listParts });
         const allParts = partData.data.listParts.items;
-        
         const seen = new Set();
         const duplicates = [];
         
         allParts.forEach(part => {
-            // สร้าง Key เพื่อเช็คความซ้ำ (หมวด+ชื่อ+ราคา)
             const uniqueKey = `${part.categoryKey}|${part.name}|${part.price}`;
             if (seen.has(uniqueKey)) {
-                // ถ้าเคยเจอแล้ว แสดงว่าเป็นตัวซ้ำ ให้เก็บ ID ไว้ลบ
                 duplicates.push(part.id);
             } else {
                 seen.add(uniqueKey);
@@ -293,23 +318,20 @@ function GarageApp({ signOut, user }) {
         });
 
         if (duplicates.length === 0) {
-            alert("✅ ไม่พบข้อมูลซ้ำครับ Database ปกติดี");
+            alert("✅ Database ปกติ ไม่มีข้อมูลซ้ำ");
             setLoading(false);
             return;
         }
 
-        // 2. ลบตัวซ้ำออกทีละตัว
         let count = 0;
         for (const id of duplicates) {
              await client.graphql({ query: mutations.deletePart, variables: { input: { id } } });
              count++;
         }
-        
-        alert(`🧹 ล้างข้อมูลซ้ำเรียบร้อย! ลบออกไปทั้งหมด ${count} รายการ`);
-        fetchData(); // โหลดหน้าจอใหม่
+        alert(`🧹 ลบข้อมูลซ้ำเรียบร้อย! (${count} รายการ)`);
+        fetchData(); 
     } catch (e) {
-        console.error(e);
-        alert("เกิดข้อผิดพลาดในการลบ: " + e.message);
+        alert("เกิดข้อผิดพลาด: " + e.message);
     } finally {
         setLoading(false);
     }
@@ -405,10 +427,15 @@ function GarageApp({ signOut, user }) {
   if (page === 'admin') {
     if (!isAdmin) return <div className="p-20 text-center">Access Denied</div>;
     
-    const filteredBookings = allBookings.filter(b => 
-        b.customerName.toLowerCase().includes(adminBookingSearch.toLowerCase()) || 
-        b.licensePlate.toLowerCase().includes(adminBookingSearch.toLowerCase())
-    );
+    // Logic การกรองข้อมูล: วันที่ และ Search
+    const uniqueDates = [...new Set(allBookings.map(b => b.bookingDate))].sort().reverse();
+
+    const filteredBookings = allBookings.filter(b => {
+        const matchesSearch = b.customerName.toLowerCase().includes(adminBookingSearch.toLowerCase()) || 
+                              b.licensePlate.toLowerCase().includes(adminBookingSearch.toLowerCase());
+        const matchesDate = adminDateFilter ? b.bookingDate === adminDateFilter : true;
+        return matchesSearch && matchesDate;
+    });
 
     return (
         <div className="min-h-screen bg-gray-100 pb-20">
@@ -436,14 +463,32 @@ function GarageApp({ signOut, user }) {
                                 <div className="text-3xl font-black">{allBookings.length} รายการ</div>
                             </div>
                             <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-orange-500 col-span-2">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-                                    <input 
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-orange-500" 
-                                        placeholder="ค้นหาชื่อลูกค้า หรือ ทะเบียนรถ..."
-                                        value={adminBookingSearch}
-                                        onChange={e => setAdminBookingSearch(e.target.value)}
-                                    />
+                                <div className="flex gap-2">
+                                    {/* 📅 Dropdown เลือกวันที่ */}
+                                    <div className="relative w-1/3">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                                        <select 
+                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={adminDateFilter}
+                                            onChange={e => setAdminDateFilter(e.target.value)}
+                                        >
+                                            <option value="">-- ทุกวันที่ --</option>
+                                            {uniqueDates.map(date => (
+                                                <option key={date} value={date}>{date}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* 🔍 ช่องค้นหา */}
+                                    <div className="relative w-2/3">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                                        <input 
+                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-orange-500" 
+                                            placeholder="ค้นหาชื่อลูกค้า หรือ ทะเบียนรถ..."
+                                            value={adminBookingSearch}
+                                            onChange={e => setAdminBookingSearch(e.target.value)}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -457,6 +502,7 @@ function GarageApp({ signOut, user }) {
                                         <th className="p-6">ข้อมูลรถ</th>
                                         <th className="p-6 text-right">ยอดรวม</th>
                                         <th className="p-6 text-center">สถานะ</th>
+                                        <th className="p-6 text-center">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y text-sm">
@@ -482,6 +528,15 @@ function GarageApp({ signOut, user }) {
                                                     {b.status}
                                                 </span>
                                             </td>
+                                            <td className="p-6 text-center">
+                                                <button 
+                                                    onClick={() => handleDeleteBooking(b.id)}
+                                                    className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
+                                                    title="ลบรายการจองนี้"
+                                                >
+                                                    <Trash2 size={18}/>
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -491,7 +546,6 @@ function GarageApp({ signOut, user }) {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {/* ส่วนหัวสำหรับจัดการสินค้า */}
                         <div className="flex justify-between items-center bg-red-50 border border-red-200 p-4 rounded-2xl">
                             <div className="flex items-center gap-2 text-red-700 text-sm font-bold">
                                 <RefreshCw size={20}/>
@@ -604,7 +658,6 @@ function GarageApp({ signOut, user }) {
                           value={data.phoneNumber} 
                           onChange={e => setData({...data, phoneNumber: e.target.value})}
                         />
-                        {/* ปุ่มเล็กๆ สำหรับดึงเบอร์จากโปรไฟล์ ถ้าไม่ขึ้นอัตโนมัติ */}
                         {user?.attributes?.phone_number && (
                             <button 
                                 onClick={pullPhoneFromProfile}
@@ -658,6 +711,13 @@ function GarageApp({ signOut, user }) {
                                         <div className={`text-xs font-bold ${slot.available ? 'text-green-500' : 'text-red-500'}`}>
                                             {slot.available ? `ว่าง ${slot.remaining} ชม.` : 'คิวเต็ม'}
                                         </div>
+                                        
+                                        {!slot.available && (
+                                            <div className="text-[10px] text-red-400 mt-1">
+                                                (ใช้เวลา {slot.needed} ชม.)
+                                            </div>
+                                        )}
+
                                         {data.time === t && <CheckCircle className="text-orange-500 mt-1 ml-auto"/>}
                                     </div>
                                 </button>
