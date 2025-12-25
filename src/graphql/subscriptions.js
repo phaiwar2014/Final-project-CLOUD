@@ -2,11 +2,8 @@
 // this is an auto generated file. This will be overwritten
 
 export const onCreateBooking = /* GraphQL */ `
-  subscription OnCreateBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onCreateBooking(filter: $filter, owner: $owner) {
+  subscription OnCreateBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onCreateBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -21,17 +18,13 @@ export const onCreateBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
 `;
 export const onUpdateBooking = /* GraphQL */ `
-  subscription OnUpdateBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onUpdateBooking(filter: $filter, owner: $owner) {
+  subscription OnUpdateBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onUpdateBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -46,17 +39,13 @@ export const onUpdateBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
 `;
 export const onDeleteBooking = /* GraphQL */ `
-  subscription OnDeleteBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onDeleteBooking(filter: $filter, owner: $owner) {
+  subscription OnDeleteBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onDeleteBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -71,7 +60,6 @@ export const onDeleteBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }

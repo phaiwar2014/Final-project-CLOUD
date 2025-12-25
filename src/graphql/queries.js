@@ -18,7 +18,6 @@ export const getBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -45,7 +44,6 @@ export const listBookings = /* GraphQL */ `
         status
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken

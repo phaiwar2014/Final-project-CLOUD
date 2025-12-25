@@ -21,7 +21,6 @@ export const createBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -46,7 +45,6 @@ export const updateBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -71,7 +69,6 @@ export const deleteBooking = /* GraphQL */ `
       status
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
