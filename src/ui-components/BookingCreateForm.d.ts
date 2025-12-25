@@ -33,6 +33,7 @@ export declare type BookingCreateFormInputValues = {
     bookingDate?: string;
     bookingTime?: string;
     status?: string;
+    mechanicName?: string;
 };
 export declare type BookingCreateFormValidationValues = {
     customerName?: ValidationFunction<string>;
@@ -46,6 +47,7 @@ export declare type BookingCreateFormValidationValues = {
     bookingDate?: ValidationFunction<string>;
     bookingTime?: ValidationFunction<string>;
     status?: ValidationFunction<string>;
+    mechanicName?: ValidationFunction<string>;
 };
 export declare type PrimitiveOverrideProps<T> = Partial<T> & React.DOMAttributes<HTMLDivElement>;
 export declare type BookingCreateFormOverridesProps = {
@@ -61,6 +63,7 @@ export declare type BookingCreateFormOverridesProps = {
     bookingDate?: PrimitiveOverrideProps<TextFieldProps>;
     bookingTime?: PrimitiveOverrideProps<TextFieldProps>;
     status?: PrimitiveOverrideProps<TextFieldProps>;
+    mechanicName?: PrimitiveOverrideProps<TextFieldProps>;
 } & EscapeHatchProps;
 export declare type BookingCreateFormProps = React.PropsWithChildren<{
     overrides?: BookingCreateFormOverridesProps | undefined | null;

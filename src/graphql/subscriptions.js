@@ -16,6 +16,7 @@ export const onCreateBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
       __typename
@@ -37,6 +38,7 @@ export const onUpdateBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
       __typename
@@ -58,6 +60,7 @@ export const onDeleteBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
       __typename
