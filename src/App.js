@@ -27,7 +27,7 @@ try {
 const client = generateClient();
 
 // --- 🔒 CONFIGURATION: ROLES & USERS ---
-const ADMIN_LIST = ['phais', 'karn', 'aj']; 
+const ADMIN_LIST = ['phai', 'karn', 'aj']; 
 const MECHANIC_LIST = ['machanic1']; 
 const ACCOUNTANT_LIST = ['account1']; 
 
