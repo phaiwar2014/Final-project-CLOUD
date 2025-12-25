@@ -36,6 +36,7 @@ export default function BookingUpdateForm(props) {
     bookingDate: "",
     bookingTime: "",
     status: "",
+    mechanicName: "",
   };
   const [customerName, setCustomerName] = React.useState(
     initialValues.customerName
@@ -60,6 +61,9 @@ export default function BookingUpdateForm(props) {
     initialValues.bookingTime
   );
   const [status, setStatus] = React.useState(initialValues.status);
+  const [mechanicName, setMechanicName] = React.useState(
+    initialValues.mechanicName
+  );
   const [errors, setErrors] = React.useState({});
   const resetStateValues = () => {
     const cleanValues = bookingRecord
@@ -76,6 +80,7 @@ export default function BookingUpdateForm(props) {
     setBookingDate(cleanValues.bookingDate);
     setBookingTime(cleanValues.bookingTime);
     setStatus(cleanValues.status);
+    setMechanicName(cleanValues.mechanicName);
     setErrors({});
   };
   const [bookingRecord, setBookingRecord] = React.useState(bookingModelProp);
@@ -106,6 +111,7 @@ export default function BookingUpdateForm(props) {
     bookingDate: [{ type: "Required" }],
     bookingTime: [{ type: "Required" }],
     status: [],
+    mechanicName: [],
   };
   const runValidationTasks = async (
     fieldName,
@@ -144,6 +150,7 @@ export default function BookingUpdateForm(props) {
           bookingDate,
           bookingTime,
           status: status ?? null,
+          mechanicName: mechanicName ?? null,
         };
         const validationResponses = await Promise.all(
           Object.keys(validations).reduce((promises, fieldName) => {
@@ -215,6 +222,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.customerName ?? value;
@@ -249,6 +257,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.phoneNumber ?? value;
@@ -283,6 +292,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.carBrand ?? value;
@@ -317,6 +327,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.carYear ?? value;
@@ -351,6 +362,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.licensePlate ?? value;
@@ -389,6 +401,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.mileage ?? value;
@@ -423,6 +436,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.selectedItems ?? value;
@@ -461,6 +475,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.totalPrice ?? value;
@@ -496,6 +511,7 @@ export default function BookingUpdateForm(props) {
               bookingDate: value,
               bookingTime,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.bookingDate ?? value;
@@ -531,6 +547,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime: value,
               status,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.bookingTime ?? value;
@@ -565,6 +582,7 @@ export default function BookingUpdateForm(props) {
               bookingDate,
               bookingTime,
               status: value,
+              mechanicName,
             };
             const result = onChange(modelFields);
             value = result?.status ?? value;
@@ -578,6 +596,41 @@ export default function BookingUpdateForm(props) {
         errorMessage={errors.status?.errorMessage}
         hasError={errors.status?.hasError}
         {...getOverrideProps(overrides, "status")}
+      ></TextField>
+      <TextField
+        label="Mechanic name"
+        isRequired={false}
+        isReadOnly={false}
+        value={mechanicName}
+        onChange={(e) => {
+          let { value } = e.target;
+          if (onChange) {
+            const modelFields = {
+              customerName,
+              phoneNumber,
+              carBrand,
+              carYear,
+              licensePlate,
+              mileage,
+              selectedItems,
+              totalPrice,
+              bookingDate,
+              bookingTime,
+              status,
+              mechanicName: value,
+            };
+            const result = onChange(modelFields);
+            value = result?.mechanicName ?? value;
+          }
+          if (errors.mechanicName?.hasError) {
+            runValidationTasks("mechanicName", value);
+          }
+          setMechanicName(value);
+        }}
+        onBlur={() => runValidationTasks("mechanicName", mechanicName)}
+        errorMessage={errors.mechanicName?.errorMessage}
+        hasError={errors.mechanicName?.hasError}
+        {...getOverrideProps(overrides, "mechanicName")}
       ></TextField>
       <Flex
         justifyContent="space-between"

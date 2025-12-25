@@ -19,9 +19,9 @@ export const createBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -44,9 +44,9 @@ export const updateBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -69,9 +69,9 @@ export const deleteBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -88,6 +88,7 @@ export const createPart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -106,6 +107,7 @@ export const updatePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -124,6 +126,7 @@ export const deletePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename

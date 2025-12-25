@@ -2,11 +2,8 @@
 // this is an auto generated file. This will be overwritten
 
 export const onCreateBooking = /* GraphQL */ `
-  subscription OnCreateBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onCreateBooking(filter: $filter, owner: $owner) {
+  subscription OnCreateBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onCreateBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -19,19 +16,16 @@ export const onCreateBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
 `;
 export const onUpdateBooking = /* GraphQL */ `
-  subscription OnUpdateBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onUpdateBooking(filter: $filter, owner: $owner) {
+  subscription OnUpdateBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onUpdateBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -44,19 +38,16 @@ export const onUpdateBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
 `;
 export const onDeleteBooking = /* GraphQL */ `
-  subscription OnDeleteBooking(
-    $filter: ModelSubscriptionBookingFilterInput
-    $owner: String
-  ) {
-    onDeleteBooking(filter: $filter, owner: $owner) {
+  subscription OnDeleteBooking($filter: ModelSubscriptionBookingFilterInput) {
+    onDeleteBooking(filter: $filter) {
       id
       customerName
       phoneNumber
@@ -69,9 +60,9 @@ export const onDeleteBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -85,6 +76,7 @@ export const onCreatePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -100,6 +92,7 @@ export const onUpdatePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -115,6 +108,7 @@ export const onDeletePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename

@@ -16,9 +16,9 @@ export const getBooking = /* GraphQL */ `
       bookingDate
       bookingTime
       status
+      mechanicName
       createdAt
       updatedAt
-      owner
       __typename
     }
   }
@@ -43,9 +43,9 @@ export const listBookings = /* GraphQL */ `
         bookingDate
         bookingTime
         status
+        mechanicName
         createdAt
         updatedAt
-        owner
         __typename
       }
       nextToken
@@ -62,6 +62,7 @@ export const getPart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -82,6 +83,7 @@ export const listParts = /* GraphQL */ `
         name
         price
         isFixed
+        stock
         createdAt
         updatedAt
         __typename

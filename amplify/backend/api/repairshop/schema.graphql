@@ -1,10 +1,4 @@
-# ตารางเก็บข้อมูลการจอง (Booking)
-type Booking @model @auth(rules: [
-  # กฎที่ 1: เจ้าของข้อมูล (Owner) ทำได้ทุกอย่าง (สร้าง, อ่าน, แก้ไข, ลบ)
-  { allow: owner },
-  # กฎที่ 2: คนที่ล็อกอิน (Private) สามารถ "อ่าน" ได้อย่างเดียว (เพื่อเช็คคิวว่าง)
-  { allow: private, operations: [read] } 
-]) {
+type Booking @model @auth(rules: [{ allow: private }]) {
   id: ID!
   customerName: String!
   phoneNumber: String!
@@ -17,17 +11,15 @@ type Booking @model @auth(rules: [
   bookingDate: AWSDate!
   bookingTime: AWSTime!
   status: String
+  mechanicName: String # 🟢 ต้องมีบรรทัดนี้ เพื่อเก็บชื่อช่าง
 }
 
-# ตารางเก็บสินค้า (Part)
-type Part @model @auth(rules: [
-  { allow: public }, 
-  { allow: private }
-]) {
+type Part @model @auth(rules: [{ allow: public }, { allow: private }]) {
   id: ID!
   categoryKey: String!
   categoryName: String!
   name: String!
   price: Int!
   isFixed: Boolean!
+  stock: Int # 🟢 ต้องมีบรรทัดนี้ เพื่อเก็บสต็อก
 }
