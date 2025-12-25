@@ -69,6 +69,7 @@ const CATEGORY_OPTIONS = [
     { key: 'gearDrainWasher', name: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์' },
     { key: 'gearFillWasher', name: 'แหวนรองเติมน้ำมันเกียร์' },
     { key: 'fuelFilter', name: 'กรองน้ำมันเชื้อเพลิง' },
+    { key: 'laborCost', name: 'ค่าแรง' },
 ];
 
 const MILEAGE_RULES = {
@@ -95,7 +96,7 @@ const parseSelectedItems = (jsonString) => {
     } catch (e) { return ["ไม่สามารถอ่านรายการได้"]; }
 };
 
-// --- Component: Mechanic Job Modal (สำหรับปรับของก่อนเริ่มงาน) ---
+// --- Component: Mechanic Job Modal ---
 const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }) => {
     const [selectedItems, setSelectedItems] = useState([]);
     const [additionalPartId, setAdditionalPartId] = useState("");
@@ -105,14 +106,7 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
             try {
                 const parsed = JSON.parse(job.selectedItems);
                 let initialItems = [];
-                // Flatten parts catalog and include categoryName
-                const allParts = [];
-                Object.keys(partsCatalog).forEach(key => {
-                    const cat = partsCatalog[key];
-                    cat.options.forEach(opt => {
-                        allParts.push({ ...opt, categoryName: cat.name });
-                    });
-                });
+                const allParts = Object.values(partsCatalog).flatMap(c => c.options);
 
                 if (parsed.ids && Array.isArray(parsed.ids)) {
                     initialItems = parsed.ids.map(id => {
@@ -135,13 +129,7 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
 
     const handleAddItem = () => {
         if (!additionalPartId) return;
-        const allParts = [];
-        Object.keys(partsCatalog).forEach(key => {
-            const cat = partsCatalog[key];
-            cat.options.forEach(opt => {
-                allParts.push({ ...opt, categoryName: cat.name });
-            });
-        });
+        const allParts = Object.values(partsCatalog).flatMap(c => c.options);
         const part = allParts.find(p => p.id === additionalPartId);
         if (part) {
             setSelectedItems([...selectedItems, part]);
@@ -156,8 +144,9 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
     if (!isOpen || !job) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+        // ปรับ CSS: ใช้ z-[9999] และ h-screen w-screen เพื่อให้ Pop-up อยู่บนสุดและเต็มหน้าจอ
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 h-screen w-screen">
+            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
                     <h2 className="text-2xl font-black text-slate-800">เตรียมเริ่มงาน / เบิกอะไหล่</h2>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={24}/></button>
@@ -226,7 +215,7 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
     );
 };
 
-// --- Component: Accounting Close Job Modal (สำหรับบัญชีปรับยอด) ---
+// --- Component: Accounting Close Job Modal ---
 const AccountingCloseModal = ({ job, isOpen, onClose, onConfirmClose }) => {
     const [adjustedTotal, setAdjustedTotal] = useState(0);
 
@@ -239,8 +228,9 @@ const AccountingCloseModal = ({ job, isOpen, onClose, onConfirmClose }) => {
     if (!isOpen || !job) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
+        // ปรับ CSS: ใช้ z-[9999] และ h-screen w-screen
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4 h-screen w-screen">
+            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
                  <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> สรุปยอด/ปิดงาน</h2>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
@@ -294,14 +284,7 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
 
     try {
       const parsed = JSON.parse(job.selectedItems);
-      // Flatten parts for lookup
-      const allParts = [];
-      Object.keys(partsCatalog).forEach(key => {
-        const cat = partsCatalog[key];
-        cat.options.forEach(opt => {
-            allParts.push({ ...opt, categoryName: cat.name });
-        });
-      });
+      const allParts = Object.values(partsCatalog).flatMap(c => c.options);
 
       // Case 1: New Format with IDs
       if (parsed.ids && Array.isArray(parsed.ids)) {
@@ -365,12 +348,10 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
             {parsedItems.map((item, idx) => (
               <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
                 <span className={`text-slate-700 font-medium ${item.isMissing ? 'text-red-500' : ''}`}>
-                    {/* แก้ไขการแสดงผลตามที่ขอ: หมวดหมู่ : ชื่อสินค้า */}
                     <span className="text-xs text-gray-400 mr-1">{item.categoryName} :</span> {item.name}
                 </span>
                 {item.stock !== null ? (
                   <span className={`text-[10px] font-bold px-2 py-1 rounded ${item.stock === 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                    {/* เพิ่มช่องว่างตามที่ขอ */}
                     <span className="inline-block w-4"></span>
                     {item.stock === 0 ? 'ของขาด Stock' : `มีในสต็อก: ${item.stock}`}
                   </span>
@@ -379,7 +360,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
                 )}
               </li>
             ))}
-            {parsedItems.length === 0 && <li className="text-red-400">ไม่สามารถอ่านรายการได้</li>}
           </ul>
         </div>
       </div>
@@ -437,13 +417,13 @@ function GarageApp({ signOut, user }) {
   const [adminDateFilter, setAdminDateFilter] = useState('');
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
-  // Accounting UI State (New)
+  // Accounting UI State
   const [accountingViewType, setAccountingViewType] = useState('monthly'); 
   const [accountingDate, setAccountingDate] = useState(new Date().toISOString().substring(0, 7)); 
   const [accountingModalOpen, setAccountingModalOpen] = useState(false);
   const [selectedJobForAccounting, setSelectedJobForAccounting] = useState(null);
 
-  // Config UI State (New)
+  // Config UI State
   const [blockedDates, setBlockedDates] = useState([]);
   const [newBlockedDate, setNewBlockedDate] = useState('');
 
@@ -680,7 +660,6 @@ function GarageApp({ signOut, user }) {
       }
   };
 
-  // 🆕 Accounting Close Job
   const handleAccountingCloseJob = async (jobId, finalPrice) => {
       setLoading(true);
       try {
@@ -935,24 +914,12 @@ function GarageApp({ signOut, user }) {
                                         {b.bookingDate} <span className={`text-sm px-2 py-1 rounded-lg ${b.bookingTime.startsWith('08') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{b.bookingTime.substring(0,5)} น.</span>
                                     </div>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                    b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 
-                                    b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                                    b.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                    b.status === 'COMPLETED' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
-                                }`}>
-                                    {b.status === 'PENDING' ? 'รอยืนยัน' : 
-                                     b.status === 'CONFIRMED' ? 'ยืนยันแล้ว' :
-                                     b.status === 'IN_PROGRESS' ? 'กำลังซ่อม' :
-                                     b.status === 'COMPLETED' ? 'ซ่อมเสร็จ' : b.status}
-                                </span>
+                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-gray-100">{b.status}</span>
                             </div>
-                            
                             <div className="grid grid-cols-2 gap-4 text-sm mb-4 bg-slate-50 p-4 rounded-xl">
                                 <div><div className="text-slate-400 text-xs">รถยนต์</div><div className="font-bold">{b.carBrand} ({b.licensePlate})</div></div>
                                 <div><div className="text-slate-400 text-xs">ระยะทาง</div><div className="font-bold">{b.mileage.toLocaleString()} km</div></div>
                             </div>
-
                             <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                                 <div className="text-lg font-bold text-slate-900">฿{b.totalPrice.toLocaleString()}</div>
                                 {['PENDING', 'CONFIRMED'].includes(b.status) && (
@@ -971,7 +938,6 @@ function GarageApp({ signOut, user }) {
     if (!isStaff) return <div className="p-20 text-center">Access Denied</div>;
     
     const uniqueDates = [...new Set(allBookings.map(b => b.bookingDate))].sort().reverse();
-
     const filteredBookings = allBookings.filter(b => {
         const matchesSearch = b.customerName.toLowerCase().includes(adminBookingSearch.toLowerCase()) || 
                               b.licensePlate.toLowerCase().includes(adminBookingSearch.toLowerCase());
@@ -981,7 +947,6 @@ function GarageApp({ signOut, user }) {
 
     const mechanicJobs = allBookings.filter(b => ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && (adminDateFilter ? b.bookingDate === adminDateFilter : true));
     
-    // Accounting Filter
     const filteredAccountingBookings = allBookings.filter(b => {
         if (!['COMPLETED', 'CLOSED'].includes(b.status)) return false; 
         if (accountingViewType === 'daily') {
@@ -995,6 +960,7 @@ function GarageApp({ signOut, user }) {
 
     return (
         <div className="min-h-screen bg-gray-100 pb-20">
+            {/* --- Modals are placed here to ensure they are on top of z-index stack --- */}
             <MechanicJobModal 
                 isOpen={mechanicModalOpen} 
                 onClose={() => setMechanicModalOpen(false)} 
