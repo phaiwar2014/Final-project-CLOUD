@@ -90,6 +90,125 @@ const MILEAGE_RULES = {
 
 const MAX_HOURS_PER_SLOT = 4; // ความจุสูงสุด 4 ชม. ต่อรอบ
 
+// --- Component: Mechanic Job Card ---
+// การ์ดงานช่าง แยกออกมาเพื่อความสะอาดและประสิทธิภาพ
+const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
+  const { parsedItems, isStockSufficient, insufficientParts } = useMemo(() => {
+    let isStockSufficient = true;
+    const insufficientParts = [];
+    let parsedItems = [];
+
+    try {
+      const parsed = JSON.parse(job.selectedItems);
+      const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+
+      // Case 1: New Format with IDs (Reliable for Stock)
+      if (parsed.ids && Array.isArray(parsed.ids)) {
+        parsedItems = parsed.ids.map(id => {
+          const part = allParts.find(p => p.id === id);
+          if (part && (part.stock || 0) <= 0) {
+            isStockSufficient = false;
+            insufficientParts.push(part.name);
+          }
+          return {
+            name: part ? part.name : 'Unknown Item',
+            price: part ? part.price : 0,
+            stock: part ? (part.stock || 0) : null,
+            isMissing: part ? (part.stock || 0) <= 0 : true
+          };
+        });
+      } else {
+        // Case 2: Old Format (Text only) - Fuzzy Match Logic
+        const displayData = parsed.display || parsed;
+        parsedItems = Object.entries(displayData).map(([key, val]) => {
+          const nameMatch = val.match(/^(.*?)\s\(\d+\)$/);
+          const cleanName = nameMatch ? nameMatch[1] : val;
+
+          const part = allParts.find(p => p.name === cleanName || val.includes(p.name));
+          const stock = part ? (part.stock || 0) : null;
+
+          if (stock !== null && stock <= 0) {
+            isStockSufficient = false;
+            insufficientParts.push(cleanName);
+          }
+
+          return {
+            name: val,
+            price: 0,
+            stock: stock,
+            isMissing: stock !== null && stock <= 0
+          };
+        });
+      }
+    } catch (e) {
+      // Error handling
+    }
+    return { parsedItems, isStockSufficient, insufficientParts };
+  }, [job.selectedItems, partsCatalog]);
+
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
+      <div>
+        <div className="flex justify-between items-start mb-4">
+          <div className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-600">{job.bookingDate} | {job.bookingTime.substring(0, 5)} น.</div>
+          <div className={`px-3 py-1 rounded-full text-xs font-bold ${job.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 animate-pulse' : 'bg-green-100 text-green-700'}`}>
+            {job.status}
+          </div>
+        </div>
+        <h4 className="text-xl font-black text-slate-800 mb-1">{job.carBrand} ({job.licensePlate})</h4>
+        <p className="text-sm text-slate-500 mb-4">เช็คระยะ {job.mileage.toLocaleString()} km</p>
+
+        {/* รายการอะไหล่พร้อมแสดงสถานะสต็อก */}
+        <div className="bg-gray-50 p-4 rounded-xl mb-4">
+          <h5 className="font-bold text-xs text-gray-400 uppercase mb-2 flex items-center gap-1"><CheckSquare size={12} /> รายการอะไหล่ที่ต้องเบิก</h5>
+          <ul className="text-sm space-y-2">
+            {parsedItems.map((item, idx) => (
+              <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
+                <span className={`text-slate-700 font-medium ${item.isMissing ? 'text-red-500' : ''}`}>{item.name}</span>
+                {item.stock !== null ? (
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded ${item.stock === 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                    {item.stock === 0 ? 'ของขาด Stock' : `มีในสต็อก: ${item.stock}`}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded">ไม่พบข้อมูลสต็อก</span>
+                )}
+              </li>
+            ))}
+            {parsedItems.length === 0 && <li className="text-red-400">ไม่สามารถอ่านรายการได้</li>}
+          </ul>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 mt-4">
+        {job.status === 'CONFIRMED' && (
+          <>
+            <button
+              onClick={() => onUpdateStatus(job.id, 'IN_PROGRESS')}
+              disabled={!isStockSufficient}
+              className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 ${isStockSufficient ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
+              <PlayCircle size={18} /> เริ่มงาน (ตัดสต็อก)
+            </button>
+            {!isStockSufficient && (
+              <div className="text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100">
+                ❌ ไม่สามารถเริ่มงานได้: ของขาด ({insufficientParts.join(', ')})
+              </div>
+            )}
+          </>
+        )}
+        {job.status === 'IN_PROGRESS' && (
+          <button
+            onClick={() => onUpdateStatus(job.id, 'COMPLETED')}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
+          >
+            <CheckCircle size={18} /> ปิดงาน (เสร็จสิ้น)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 function GarageApp({ signOut, user }) {
   const [page, setPage] = useState('landing');
   const [loading, setLoading] = useState(false);
@@ -125,12 +244,12 @@ function GarageApp({ signOut, user }) {
   };
   
   // Admin UI State
-  const [adminTab, setAdminTab] = useState('bookings'); // 'bookings', 'parts', 'mechanic', 'lowstock'
+  const [adminTab, setAdminTab] = useState('bookings'); 
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
   const [adminDateFilter, setAdminDateFilter] = useState('');
-  const [lowStockThreshold, setLowStockThreshold] = useState(5); // 🆕 กำหนดเกณฑ์สินค้าใกล้หมด
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
   // Capacity Checking State
   const [slotStatus, setSlotStatus] = useState(null);
@@ -272,22 +391,17 @@ function GarageApp({ signOut, user }) {
         // 2. ถ้าเป็นการเริ่มงาน (IN_PROGRESS) ให้ตัดสต็อก
         if (newStatus === 'IN_PROGRESS') {
             try {
-                // พยายาม Parse JSON เพื่อหา ID ของสินค้า
                 const parsedItems = JSON.parse(booking.selectedItems);
                 
-                // รองรับเฉพาะรูปแบบใหม่ที่มี 'ids'
                 if (parsedItems.ids && Array.isArray(parsedItems.ids)) {
-                    // รวมรายการสินค้าทั้งหมดจาก Catalog เพื่อค้นหา stock ปัจจุบัน
                     const allPartsFlat = [];
                     Object.values(partsCatalog).forEach(cat => allPartsFlat.push(...cat.options));
                     
-                    // วนลูปตัดสต็อกทีละรายการ
                     const updatePromises = parsedItems.ids.map(async (itemId) => {
                         const part = allPartsFlat.find(p => p.id === itemId);
                         if (part) {
                             const currentStock = part.stock || 0;
                             const newStock = currentStock > 0 ? currentStock - 1 : 0;
-                            // เรียก API อัปเดต stock
                             return client.graphql({
                                 query: mutations.updatePart,
                                 variables: { input: { id: itemId, stock: newStock } }
@@ -778,100 +892,7 @@ function GarageApp({ signOut, user }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {mechanicJobs.length === 0 && <div className="col-span-2 p-10 text-center bg-white rounded-2xl border border-dashed text-gray-400">ไม่มีงานค้าง</div>}
                             {mechanicJobs.map(job => (
-                                <div key={job.id} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="bg-slate-100 px-3 py-1 rounded-lg text-xs font-bold text-slate-600">{job.bookingDate} | {job.bookingTime.substring(0,5)} น.</div>
-                                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${job.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 animate-pulse' : 'bg-green-100 text-green-700'}`}>
-                                                {job.status}
-                                            </div>
-                                        </div>
-                                        <h4 className="text-xl font-black text-slate-800 mb-1">{job.carBrand} ({job.licensePlate})</h4>
-                                        <p className="text-sm text-slate-500 mb-4">เช็คระยะ {job.mileage.toLocaleString()} km</p>
-                                        
-                                        {/* รายการอะไหล่พร้อมแสดงสถานะสต็อก (Logic Updated) */}
-                                        <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                                            <h5 className="font-bold text-xs text-gray-400 uppercase mb-2 flex items-center gap-1"><CheckSquare size={12}/> รายการอะไหล่ที่ต้องเบิก</h5>
-                                            <ul className="text-sm space-y-2">
-                                                {(() => {
-                                                    try {
-                                                        const parsed = JSON.parse(job.selectedItems);
-                                                        const allParts = Object.values(partsCatalog).flatMap(c => c.options);
-
-                                                        const getStockBadge = (stockCount) => {
-                                                            if (stockCount === 0) return <span className="text-xs font-bold px-2 py-1 rounded bg-red-100 text-red-600 ml-auto">ของขาด Stock</span>;
-                                                            return <span className={`text-xs font-bold px-2 py-1 rounded ml-auto ${stockCount < 5 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>มีในสต็อก: {stockCount}</span>;
-                                                        };
-                                                        
-                                                        // Case 1: New Format with IDs
-                                                        if (parsed.ids && Array.isArray(parsed.ids)) {
-                                                            return parsed.ids.map((id, idx) => {
-                                                                const part = allParts.find(p => p.id === id);
-                                                                if (part) {
-                                                                    return (
-                                                                        <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
-                                                                            <span className="text-slate-700 font-medium">{part.name}</span>
-                                                                            {getStockBadge(part.stock || 0)}
-                                                                        </li>
-                                                                    );
-                                                                }
-                                                                return (
-                                                                    <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100 opacity-60">
-                                                                        <span className="text-slate-500 italic">สินค้าถูกลบ</span>
-                                                                        <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded">Unknown</span>
-                                                                    </li>
-                                                                );
-                                                            });
-                                                        }
-
-                                                        // Case 2: Old Format (Text only) - Fuzzy Match Logic
-                                                        const displayData = parsed.display || parsed;
-                                                        return Object.entries(displayData).map(([key, val], idx) => {
-                                                            let stockInfo = <span className="text-xs text-gray-400 ml-auto">(ไม่พบข้อมูล)</span>;
-                                                            
-                                                            // Try to find part by name. val example: "Shell Helix HX8 (1200)"
-                                                            // Split by last parenthesis to get name
-                                                            const partNameMatch = val.replace(/\s\(\d+\)$/, ""); 
-                                                            const part = allParts.find(p => p.name === partNameMatch || val.includes(p.name));
-                                                            
-                                                            if (part) {
-                                                                stockInfo = getStockBadge(part.stock || 0);
-                                                            }
-
-                                                            return (
-                                                                <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
-                                                                    <span className="text-slate-700 font-medium flex gap-2 items-center"><span className="text-orange-500">•</span> {val}</span>
-                                                                    {stockInfo}
-                                                                </li>
-                                                            )
-                                                        });
-                                                    } catch (e) {
-                                                        return <li className="text-red-400">ไม่สามารถอ่านรายการได้</li>;
-                                                    }
-                                                })()}
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-3 mt-4">
-                                        {job.status === 'CONFIRMED' && (
-                                            <button 
-                                                onClick={() => handleUpdateStatus(job.id, 'IN_PROGRESS')}
-                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
-                                            >
-                                                <PlayCircle size={18}/> เริ่มงาน (ตัดสต็อก)
-                                            </button>
-                                        )}
-                                        {job.status === 'IN_PROGRESS' && (
-                                            <button 
-                                                onClick={() => handleUpdateStatus(job.id, 'COMPLETED')}
-                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
-                                            >
-                                                <CheckCircle size={18}/> ปิดงาน (เสร็จสิ้น)
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                <MechanicJobCard key={job.id} job={job} partsCatalog={partsCatalog} onUpdateStatus={handleUpdateStatus} />
                             ))}
                         </div>
                     </div>
