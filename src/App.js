@@ -7,7 +7,7 @@ import {
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
   LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, 
-  DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, PlayCircle, CheckSquare
+  DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, PlayCircle, CheckSquare, AlertTriangle, Package
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -125,11 +125,12 @@ function GarageApp({ signOut, user }) {
   };
   
   // Admin UI State
-  const [adminTab, setAdminTab] = useState('bookings'); // 'bookings', 'parts', 'mechanic'
+  const [adminTab, setAdminTab] = useState('bookings'); // 'bookings', 'parts', 'mechanic', 'lowstock'
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
   const [adminDateFilter, setAdminDateFilter] = useState('');
+  const [lowStockThreshold, setLowStockThreshold] = useState(5); // 🆕 กำหนดเกณฑ์สินค้าใกล้หมด
 
   // Capacity Checking State
   const [slotStatus, setSlotStatus] = useState(null);
@@ -255,9 +256,55 @@ function GarageApp({ signOut, user }) {
   // --- ADMIN & MECHANIC ACTIONS ---
 
   const handleUpdateStatus = async (id, newStatus) => {
-    if (!window.confirm(`ยืนยันเปลี่ยนสถานะเป็น ${newStatus}?`)) return;
+    // 1. หาข้อมูล Booking เพื่อตรวจสอบ
+    const booking = allBookings.find(b => b.id === id);
+    if (!booking) return;
+
+    let confirmMsg = `ยืนยันเปลี่ยนสถานะเป็น ${newStatus}?`;
+    if (newStatus === 'IN_PROGRESS') {
+        confirmMsg = "ยืนยันเริ่มงานซ่อม? ระบบจะตัดสต็อกอะไหล่อัตโนมัติ";
+    }
+
+    if (!window.confirm(confirmMsg)) return;
+
     setLoading(true);
     try {
+        // 2. ถ้าเป็นการเริ่มงาน (IN_PROGRESS) ให้ตัดสต็อก
+        if (newStatus === 'IN_PROGRESS') {
+            try {
+                // พยายาม Parse JSON เพื่อหา ID ของสินค้า
+                const parsedItems = JSON.parse(booking.selectedItems);
+                
+                // รองรับเฉพาะรูปแบบใหม่ที่มี 'ids'
+                if (parsedItems.ids && Array.isArray(parsedItems.ids)) {
+                    // รวมรายการสินค้าทั้งหมดจาก Catalog เพื่อค้นหา stock ปัจจุบัน
+                    const allPartsFlat = [];
+                    Object.values(partsCatalog).forEach(cat => allPartsFlat.push(...cat.options));
+                    
+                    // วนลูปตัดสต็อกทีละรายการ
+                    const updatePromises = parsedItems.ids.map(async (itemId) => {
+                        const part = allPartsFlat.find(p => p.id === itemId);
+                        if (part) {
+                            const currentStock = part.stock || 0;
+                            const newStock = currentStock > 0 ? currentStock - 1 : 0;
+                            // เรียก API อัปเดต stock
+                            return client.graphql({
+                                query: mutations.updatePart,
+                                variables: { input: { id: itemId, stock: newStock } }
+                            });
+                        }
+                    });
+                    
+                    await Promise.all(updatePromises);
+                    console.log("Stock deducted successfully");
+                }
+            } catch (stockErr) {
+                console.error("Stock deduction error:", stockErr);
+                alert("คำเตือน: ไม่สามารถตัดสต็อกอัตโนมัติได้ (ข้อมูลการจองอาจเป็นเวอร์ชันเก่า)");
+            }
+        }
+
+        // 3. อัปเดตสถานะงาน
         await client.graphql({
             query: mutations.updateBooking,
             variables: { input: { id, status: newStatus } }
@@ -429,9 +476,14 @@ function GarageApp({ signOut, user }) {
     setLoading(true);
     const total = calcTotal();
     const formattedItems = {};
+    const itemIds = []; // 🆕 เก็บ ID สินค้าเพื่อใช้ตัดสต็อก
+
     Object.keys(data.selectedParts).forEach(k => {
         const opt = partsCatalog[k]?.options.find(o => o.id === data.selectedParts[k]);
-        if(opt) formattedItems[partsCatalog[k].name] = `${opt.name} (${opt.price})`;
+        if(opt) {
+            formattedItems[partsCatalog[k].name] = `${opt.name} (${opt.price})`;
+            itemIds.push(opt.id); // เก็บ ID
+        }
     });
 
     const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
@@ -444,7 +496,8 @@ function GarageApp({ signOut, user }) {
       carYear: data.carYear,
       licensePlate: data.licensePlate,
       mileage: parseInt(data.mileage),
-      selectedItems: JSON.stringify(formattedItems),
+      // 🆕 บันทึกทั้งชื่อสำหรับโชว์ (display) และ IDs สำหรับตัดสต็อก
+      selectedItems: JSON.stringify({ display: formattedItems, ids: itemIds }),
       totalPrice: total.total,
       bookingDate: data.date,
       bookingTime: data.time === '08:00' ? '08:00:00' : '13:00:00',
@@ -458,14 +511,17 @@ function GarageApp({ signOut, user }) {
     finally { setLoading(false); }
   };
 
-  // --- HELPER: Parse Items for Mechanic ---
-  const parseSelectedItems = (jsonString) => {
-    try {
-      const items = JSON.parse(jsonString);
-      return Object.entries(items).map(([key, val]) => `${key}: ${val}`);
-    } catch (e) {
-      return ["ไม่สามารถอ่านรายการได้"];
-    }
+  // --- HELPER: Get Low Stock Items ---
+  const getLowStockItems = () => {
+    const lowItems = [];
+    Object.keys(partsCatalog).forEach(catKey => {
+       partsCatalog[catKey].options.forEach(item => {
+           if ((item.stock || 0) < lowStockThreshold) {
+               lowItems.push({ ...item, categoryName: partsCatalog[catKey].name });
+           }
+       });
+    });
+    return lowItems;
   };
 
   // --- VIEWS ---
@@ -592,14 +648,16 @@ function GarageApp({ signOut, user }) {
         (adminDateFilter ? b.bookingDate === adminDateFilter : true)
     );
 
+    const lowStockItems = getLowStockItems();
+
     return (
         <div className="min-h-screen bg-gray-100 pb-20">
-            <div className="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md">
-                <div className="flex items-center gap-4">
+            <div className="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md overflow-x-auto">
+                <div className="flex items-center gap-4 min-w-max">
                     <button onClick={() => setPage('landing')} className="p-2 hover:bg-slate-800 rounded-lg"><ArrowLeft/></button>
                     <h2 className="font-bold text-xl">Admin Control Center</h2>
                 </div>
-                <div className="flex bg-slate-800 p-1 rounded-xl">
+                <div className="flex bg-slate-800 p-1 rounded-xl min-w-max ml-4">
                     <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                         <ClipboardList size={18}/> คิวงานลูกค้า
                     </button>
@@ -608,6 +666,9 @@ function GarageApp({ signOut, user }) {
                     </button>
                     <button onClick={() => setAdminTab('parts')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'parts' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                         <Database size={18}/> จัดการสินค้า
+                    </button>
+                     <button onClick={() => setAdminTab('lowstock')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'lowstock' ? 'bg-red-500 text-white' : 'text-slate-400'}`}>
+                        <AlertTriangle size={18}/> สินค้าใกล้หมด {lowStockItems.length > 0 && <span className="bg-white text-red-600 px-1.5 rounded-full text-xs">{lowStockItems.length}</span>}
                     </button>
                 </div>
             </div>
@@ -728,12 +789,66 @@ function GarageApp({ signOut, user }) {
                                         <h4 className="text-xl font-black text-slate-800 mb-1">{job.carBrand} ({job.licensePlate})</h4>
                                         <p className="text-sm text-slate-500 mb-4">เช็คระยะ {job.mileage.toLocaleString()} km</p>
                                         
+                                        {/* รายการอะไหล่พร้อมแสดงสถานะสต็อก (Logic Updated) */}
                                         <div className="bg-gray-50 p-4 rounded-xl mb-4">
                                             <h5 className="font-bold text-xs text-gray-400 uppercase mb-2 flex items-center gap-1"><CheckSquare size={12}/> รายการอะไหล่ที่ต้องเบิก</h5>
-                                            <ul className="text-sm space-y-1">
-                                                {parseSelectedItems(job.selectedItems).map((item, idx) => (
-                                                    <li key={idx} className="flex gap-2 items-start"><span className="text-orange-500">•</span> {item}</li>
-                                                ))}
+                                            <ul className="text-sm space-y-2">
+                                                {(() => {
+                                                    try {
+                                                        const parsed = JSON.parse(job.selectedItems);
+                                                        const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+
+                                                        const getStockBadge = (stockCount) => {
+                                                            if (stockCount === 0) return <span className="text-xs font-bold px-2 py-1 rounded bg-red-100 text-red-600 ml-auto">ของขาด Stock</span>;
+                                                            return <span className={`text-xs font-bold px-2 py-1 rounded ml-auto ${stockCount < 5 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>มีในสต็อก: {stockCount}</span>;
+                                                        };
+                                                        
+                                                        // Case 1: New Format with IDs
+                                                        if (parsed.ids && Array.isArray(parsed.ids)) {
+                                                            return parsed.ids.map((id, idx) => {
+                                                                const part = allParts.find(p => p.id === id);
+                                                                if (part) {
+                                                                    return (
+                                                                        <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
+                                                                            <span className="text-slate-700 font-medium">{part.name}</span>
+                                                                            {getStockBadge(part.stock || 0)}
+                                                                        </li>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100 opacity-60">
+                                                                        <span className="text-slate-500 italic">สินค้าถูกลบ</span>
+                                                                        <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded">Unknown</span>
+                                                                    </li>
+                                                                );
+                                                            });
+                                                        }
+
+                                                        // Case 2: Old Format (Text only) - Fuzzy Match Logic
+                                                        const displayData = parsed.display || parsed;
+                                                        return Object.entries(displayData).map(([key, val], idx) => {
+                                                            let stockInfo = <span className="text-xs text-gray-400 ml-auto">(ไม่พบข้อมูล)</span>;
+                                                            
+                                                            // Try to find part by name. val example: "Shell Helix HX8 (1200)"
+                                                            // Split by last parenthesis to get name
+                                                            const partNameMatch = val.replace(/\s\(\d+\)$/, ""); 
+                                                            const part = allParts.find(p => p.name === partNameMatch || val.includes(p.name));
+                                                            
+                                                            if (part) {
+                                                                stockInfo = getStockBadge(part.stock || 0);
+                                                            }
+
+                                                            return (
+                                                                <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
+                                                                    <span className="text-slate-700 font-medium flex gap-2 items-center"><span className="text-orange-500">•</span> {val}</span>
+                                                                    {stockInfo}
+                                                                </li>
+                                                            )
+                                                        });
+                                                    } catch (e) {
+                                                        return <li className="text-red-400">ไม่สามารถอ่านรายการได้</li>;
+                                                    }
+                                                })()}
                                             </ul>
                                         </div>
                                     </div>
@@ -744,7 +859,7 @@ function GarageApp({ signOut, user }) {
                                                 onClick={() => handleUpdateStatus(job.id, 'IN_PROGRESS')}
                                                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2"
                                             >
-                                                <PlayCircle size={18}/> เริ่มงาน
+                                                <PlayCircle size={18}/> เริ่มงาน (ตัดสต็อก)
                                             </button>
                                         )}
                                         {job.status === 'IN_PROGRESS' && (
@@ -762,15 +877,67 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
 
+                 {/* --- 4. 🆕 สินค้าใกล้หมด (Low Stock) --- */}
+                 {adminTab === 'lowstock' && (
+                    <div className="space-y-6">
+                        <div className="bg-red-50 p-6 rounded-3xl border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h3 className="font-black text-red-700 text-lg flex items-center gap-2"><AlertTriangle/> แจ้งเตือนสินค้าใกล้หมด</h3>
+                                <p className="text-red-500 text-sm">รายการสินค้าที่มีจำนวนคงเหลือน้อยกว่ากำหนด</p>
+                            </div>
+                            <div className="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm">
+                                <span className="text-xs font-bold text-slate-500 ml-2">แจ้งเตือนเมื่อต่ำกว่า:</span>
+                                <input 
+                                    type="number" 
+                                    className="w-16 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-red-500"
+                                    value={lowStockThreshold}
+                                    onChange={(e) => setLowStockThreshold(parseInt(e.target.value) || 0)}
+                                />
+                                <span className="text-xs font-bold text-slate-500 mr-2">ชิ้น</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {getLowStockItems().length === 0 && (
+                                <div className="col-span-2 p-12 text-center bg-white rounded-3xl border border-dashed border-green-200">
+                                    <CheckCircle size={48} className="mx-auto text-green-500 mb-3 opacity-50"/>
+                                    <div className="text-green-700 font-bold">สินค้าเพียงพอ</div>
+                                    <div className="text-green-500 text-sm">ไม่มีรายการที่ต่ำกว่า {lowStockThreshold} ชิ้น</div>
+                                </div>
+                            )}
+                            {getLowStockItems().map(item => (
+                                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-red-500 flex justify-between items-center hover:shadow-md transition">
+                                    <div>
+                                        <div className="text-xs text-slate-400 mb-1">{item.categoryName}</div>
+                                        <div className="font-bold text-slate-800">{item.name}</div>
+                                        <div className="text-xs text-slate-500">{item.price} บาท</div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-center">
+                                            <div className="text-[10px] font-bold text-red-500 uppercase">คงเหลือ</div>
+                                            <div className="text-2xl font-black text-red-600">{item.stock}</div>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <button onClick={() => handleUpdateStock(item.id, item.stock, 5)} className="bg-slate-100 hover:bg-green-100 text-slate-600 hover:text-green-700 p-1.5 rounded-lg transition" title="เติม 5 ชิ้น">
+                                                <PlusCircle size={16}/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* --- 3. จัดการสินค้า (Inventory) --- */}
                 {adminTab === 'parts' && (
                     <div className="space-y-6">
-                        <div className="flex justify-between items-center bg-red-50 border border-red-200 p-4 rounded-2xl">
-                            <div className="flex items-center gap-2 text-red-700 text-sm font-bold">
+                        <div className="flex justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                            <div className="flex items-center gap-2 text-slate-700 text-sm font-bold">
                                 <RefreshCw size={20}/>
                                 <span>เครื่องมือจัดการฐานข้อมูล (ใช้เมื่อข้อมูลซ้ำ)</span>
                             </div>
-                            <button onClick={handleCleanupDuplicates} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition">
+                            <button onClick={handleCleanupDuplicates} disabled={loading} className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition">
                                 <Eraser size={16}/> 🧹 ล้างข้อมูลซ้ำ
                             </button>
                         </div>
