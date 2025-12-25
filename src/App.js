@@ -6,7 +6,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { 
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
-  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud, History
+  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud, History, MinusCircle, PlusCircle, Package
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -34,27 +34,28 @@ const ADMIN_LIST = [
     'admin@example.com'           
 ];
 
+// เพิ่ม stock เริ่มต้นให้สินค้า
 const INITIAL_SEED_DATA = [
-  { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false },
-  { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Shell Helix HX8', price: 1200, isFixed: false },
-  { categoryKey: 'oilFilter', categoryName: 'ไส้กรองน้ำมันเครื่อง', name: 'Acdelco', price: 140, isFixed: false },
-  { categoryKey: 'oilFilter', categoryName: 'ไส้กรองน้ำมันเครื่อง', name: 'MG Authentic', price: 250, isFixed: false },
-  { categoryKey: 'airFilter', categoryName: 'กรองอากาศ', name: 'Acdelco', price: 250, isFixed: false },
-  { categoryKey: 'airFilter', categoryName: 'กรองอากาศ', name: 'MG Authentic', price: 355, isFixed: false },
-  { categoryKey: 'acFilter', categoryName: 'กรองแอร์', name: 'Acdelco', price: 250, isFixed: false },
-  { categoryKey: 'acFilter', categoryName: 'กรองแอร์', name: 'MG Authentic', price: 700, isFixed: false },
-  { categoryKey: 'sparkPlug', categoryName: 'หัวเทียน', name: 'NGK', price: 400, isFixed: false },
-  { categoryKey: 'sparkPlug', categoryName: 'หัวเทียน', name: 'MG Authentic', price: 770, isFixed: false },
-  { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'Aisin AFW+', price: 950, isFixed: false },
-  { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'MG Authentic', price: 2700, isFixed: false },
-  { categoryKey: 'brakeFluid', categoryName: 'น้ำมันเบรค', name: 'น้ำมันเบรคมาตรฐาน', price: 250, isFixed: false },
-  { categoryKey: 'drainWasher', categoryName: 'แหวนรองถ่ายน้ำมันเครื่อง', name: 'แหวนรองแท้', price: 10, isFixed: false },
-  { categoryKey: 'gearFilter', categoryName: 'กรองน้ำมันเกียร์', name: 'กรองเกียร์แท้', price: 840, isFixed: false },
-  { categoryKey: 'gearOring', categoryName: 'โอริงกรองน้ำมันเกียร์', name: 'โอริงแท้', price: 10, isFixed: false },
-  { categoryKey: 'gearGasket', categoryName: 'ประเก็นอ่างน้ำมันเกียร์', name: 'ประเก็นแท้', price: 245, isFixed: false },
-  { categoryKey: 'gearDrainWasher', categoryName: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์', name: 'แหวนรองน๊อตถ่ายฯ', price: 50, isFixed: false },
-  { categoryKey: 'gearFillWasher', categoryName: 'แหวนรองเติมน้ำมันเกียร์', name: 'แหวนรองเติมฯ', price: 64, isFixed: false },
-  { categoryKey: 'fuelFilter', categoryName: 'กรองน้ำมันเชื้อเพลิง', name: 'กรองเชื้อเพลิง', price: 500, isFixed: false },
+  { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false, stock: 50 },
+  { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Shell Helix HX8', price: 1200, isFixed: false, stock: 50 },
+  { categoryKey: 'oilFilter', categoryName: 'ไส้กรองน้ำมันเครื่อง', name: 'Acdelco', price: 140, isFixed: false, stock: 100 },
+  { categoryKey: 'oilFilter', categoryName: 'ไส้กรองน้ำมันเครื่อง', name: 'MG Authentic', price: 250, isFixed: false, stock: 100 },
+  { categoryKey: 'airFilter', categoryName: 'กรองอากาศ', name: 'Acdelco', price: 250, isFixed: false, stock: 50 },
+  { categoryKey: 'airFilter', categoryName: 'กรองอากาศ', name: 'MG Authentic', price: 355, isFixed: false, stock: 50 },
+  { categoryKey: 'acFilter', categoryName: 'กรองแอร์', name: 'Acdelco', price: 250, isFixed: false, stock: 50 },
+  { categoryKey: 'acFilter', categoryName: 'กรองแอร์', name: 'MG Authentic', price: 700, isFixed: false, stock: 50 },
+  { categoryKey: 'sparkPlug', categoryName: 'หัวเทียน', name: 'NGK', price: 400, isFixed: false, stock: 200 },
+  { categoryKey: 'sparkPlug', categoryName: 'หัวเทียน', name: 'MG Authentic', price: 770, isFixed: false, stock: 200 },
+  { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'Aisin AFW+', price: 950, isFixed: false, stock: 30 },
+  { categoryKey: 'gearOil', categoryName: 'น้ำมันเกียร์', name: 'MG Authentic', price: 2700, isFixed: false, stock: 30 },
+  { categoryKey: 'brakeFluid', categoryName: 'น้ำมันเบรค', name: 'น้ำมันเบรคมาตรฐาน', price: 250, isFixed: false, stock: 50 },
+  { categoryKey: 'drainWasher', categoryName: 'แหวนรองถ่ายน้ำมันเครื่อง', name: 'แหวนรองแท้', price: 10, isFixed: false, stock: 500 },
+  { categoryKey: 'gearFilter', categoryName: 'กรองน้ำมันเกียร์', name: 'กรองเกียร์แท้', price: 840, isFixed: false, stock: 20 },
+  { categoryKey: 'gearOring', categoryName: 'โอริงกรองน้ำมันเกียร์', name: 'โอริงแท้', price: 10, isFixed: false, stock: 50 },
+  { categoryKey: 'gearGasket', categoryName: 'ประเก็นอ่างน้ำมันเกียร์', name: 'ประเก็นแท้', price: 245, isFixed: false, stock: 20 },
+  { categoryKey: 'gearDrainWasher', categoryName: 'แหวนรองน๊อตถ่ายน้ำมันเกียร์', name: 'แหวนรองน๊อตถ่ายฯ', price: 50, isFixed: false, stock: 100 },
+  { categoryKey: 'gearFillWasher', categoryName: 'แหวนรองเติมน้ำมันเกียร์', name: 'แหวนรองเติมฯ', price: 64, isFixed: false, stock: 100 },
+  { categoryKey: 'fuelFilter', categoryName: 'กรองน้ำมันเชื้อเพลิง', name: 'กรองเชื้อเพลิง', price: 500, isFixed: false, stock: 30 },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -125,7 +126,8 @@ function GarageApp({ signOut, user }) {
   
   // Admin UI State
   const [adminTab, setAdminTab] = useState('bookings'); 
-  const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '' });
+  // เพิ่ม stock ใน state ของ form เพิ่มสินค้า
+  const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
   const [adminDateFilter, setAdminDateFilter] = useState('');
@@ -169,16 +171,15 @@ function GarageApp({ signOut, user }) {
       });
       setPartsCatalog(formattedParts);
 
-      // โหลดข้อมูลการจองทั้งหมด (เพื่อใช้ Admin และ เช็คคิว)
+      // โหลดข้อมูลการจอง
       const bookingData = await client.graphql({ query: queries.listBookings });
       const items = bookingData.data.listBookings.items;
-      const sortedItems = items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
-      setAllBookings(sortedItems);
+      setAllBookings(items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
 
-      // 🆕 กรองเฉพาะของ User เพื่อแสดงในหน้า History
+      // กรองเฉพาะของ User เพื่อแสดงในหน้า History
       const myName = user?.attributes?.name || user?.username || "Guest";
-      const myHistory = sortedItems.filter(b => b.customerName === myName || b.owner === user.username);
-      setUserBookings(myHistory);
+      const myHistory = items.filter(b => b.customerName === myName || b.owner === user.username);
+      setUserBookings(myHistory.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
       
     } catch (err) {
       console.error("Fetch error:", err);
@@ -269,10 +270,11 @@ function GarageApp({ signOut, user }) {
                 categoryName: catInfo?.name || 'อื่นๆ', 
                 name: newPart.name, 
                 price: parseInt(newPart.price), 
+                stock: parseInt(newPart.stock) || 0, // บันทึก stock ลง DB
                 isFixed: false 
             } }
         });
-        setNewPart({ categoryKey: 'engineOil', name: '', price: '' });
+        setNewPart({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
         fetchData();
     } catch (err) { alert(err.message); }
     finally { setLoading(false); }
@@ -286,6 +288,48 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert(e.message); }
   };
 
+  // ฟังก์ชันอัปเดตสต็อกสินค้า (เพิ่ม/ลด)
+  const handleUpdateStock = async (id, currentStock, change) => {
+    const newStock = (currentStock || 0) + change;
+    if (newStock < 0) return; // ห้ามติดลบ
+
+    try {
+        await client.graphql({
+            query: mutations.updatePart,
+            variables: { input: { id, stock: newStock } }
+        });
+        // อัปเดต state แบบ local เพื่อความรวดเร็ว
+        const updatedCatalog = { ...partsCatalog };
+        Object.keys(updatedCatalog).forEach(key => {
+            const index = updatedCatalog[key].options.findIndex(p => p.id === id);
+            if (index !== -1) {
+                updatedCatalog[key].options[index].stock = newStock;
+            }
+        });
+        setPartsCatalog(updatedCatalog);
+    } catch (err) {
+        console.error("Update stock error:", err);
+        alert("ไม่สามารถอัปเดตสต็อกได้ (ต้องเพิ่ม field 'stock' ใน schema ก่อน)");
+    }
+  };
+
+  const handleConfirmBooking = async (id) => {
+    if(!window.confirm('ยืนยันรับงานจองนี้หรือไม่?')) return;
+    setLoading(true);
+    try {
+        await client.graphql({
+            query: mutations.updateBooking,
+            variables: { input: { id, status: "CONFIRMED" } }
+        });
+        fetchData(); 
+    } catch (err) {
+        console.error("Update error:", err);
+        alert('เกิดข้อผิดพลาด: ' + (err.message || JSON.stringify(err)));
+    } finally {
+        setLoading(false);
+    }
+  };
+
   const handleDeleteBooking = async (id) => {
     if(!window.confirm('ยืนยันการลบรายการจองนี้? ข้อมูลจะถูกลบออกจาก Database ถาวร')) return;
     setLoading(true);
@@ -295,7 +339,7 @@ function GarageApp({ signOut, user }) {
             variables: { input: { id } }
         });
         alert("ลบรายการจองเรียบร้อยแล้ว");
-        fetchData(); // โหลดข้อมูลใหม่
+        fetchData(); 
     } catch (err) {
         console.error("Delete error:", err);
         let msg = err.message;
@@ -605,13 +649,26 @@ function GarageApp({ signOut, user }) {
                                                 </span>
                                             </td>
                                             <td className="p-6 text-center">
-                                                <button 
-                                                    onClick={() => handleDeleteBooking(b.id)}
-                                                    className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
-                                                    title="ลบรายการจองนี้"
-                                                >
-                                                    <Trash2 size={18}/>
-                                                </button>
+                                                <div className="flex justify-center gap-2">
+                                                    {/* ✅ ปุ่มยืนยัน (แสดงเฉพาะตอน PENDING) */}
+                                                    {b.status === 'PENDING' && (
+                                                        <button 
+                                                            onClick={() => handleConfirmBooking(b.id)}
+                                                            className="text-green-500 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition"
+                                                            title="ยืนยันการจอง"
+                                                        >
+                                                            <CheckCircle size={18}/>
+                                                        </button>
+                                                    )}
+                                                    {/* 🗑️ ปุ่มลบ */}
+                                                    <button 
+                                                        onClick={() => handleDeleteBooking(b.id)}
+                                                        className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition"
+                                                        title="ลบรายการจองนี้"
+                                                    >
+                                                        <Trash2 size={18}/>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -653,7 +710,12 @@ function GarageApp({ signOut, user }) {
                                     <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">ราคา (บาท)</label>
                                     <input type="number" className="w-full p-3 bg-gray-50 border rounded-xl" placeholder="0" value={newPart.price} onChange={e => setNewPart({...newPart, price: e.target.value})}/>
                                 </div>
-                                <button type="submit" disabled={loading} className="bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg">บันทึกลง Database</button>
+                                {/* --- STOCK INPUT --- */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">จำนวนสต็อก</label>
+                                    <input type="number" className="w-full p-3 bg-gray-50 border rounded-xl" placeholder="10" value={newPart.stock} onChange={e => setNewPart({...newPart, stock: e.target.value})}/>
+                                </div>
+                                <button type="submit" disabled={loading} className="bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg md:col-span-4">บันทึกลง Database</button>
                             </form>
                         </div>
                         <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm">
@@ -663,15 +725,31 @@ function GarageApp({ signOut, user }) {
                                 {CATEGORY_OPTIONS.map(opt => <option key={opt.key} value={opt.key}>{opt.name}</option>)}
                             </select>
                         </div>
+                        
+                        {/* --- STOCK LIST UI --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {Object.keys(partsCatalog).filter(k => adminCategoryFilter === 'ALL' || k === adminCategoryFilter).map(k => (
                                 <div key={k} className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                                    <div className="bg-slate-800 text-white p-4 font-black text-sm">{partsCatalog[k].name}</div>
+                                    <div className="bg-slate-800 text-white p-4 font-black text-sm flex justify-between">
+                                        <span>{partsCatalog[k].name}</span>
+                                        <span className="bg-slate-700 px-2 rounded-full text-xs py-0.5">{partsCatalog[k].options.length} รายการ</span>
+                                    </div>
                                     <div className="divide-y">
                                         {partsCatalog[k].options.map(item => (
                                             <div key={item.id} className="p-4 flex justify-between items-center hover:bg-gray-50">
-                                                <div><div className="font-bold">{item.name}</div><div className="text-xs text-slate-400">{item.price} บาท</div></div>
-                                                <button onClick={() => handleDeletePart(item.id)} className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50"><Trash2 size={18}/></button>
+                                                <div>
+                                                    <div className="font-bold">{item.name}</div>
+                                                    <div className="text-xs text-slate-400">{item.price} บาท</div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {/* ปุ่มจัดการ Stock */}
+                                                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                                                        <button onClick={() => handleUpdateStock(item.id, item.stock, -1)} className="text-slate-500 hover:text-red-500"><MinusCircle size={18}/></button>
+                                                        <span className="font-bold text-sm w-8 text-center">{item.stock || 0}</span>
+                                                        <button onClick={() => handleUpdateStock(item.id, item.stock, 1)} className="text-slate-500 hover:text-green-500"><PlusCircle size={18}/></button>
+                                                    </div>
+                                                    <button onClick={() => handleDeletePart(item.id)} className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50"><Trash2 size={18}/></button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

@@ -1,6 +1,7 @@
 # ตารางเก็บข้อมูลการจอง (Booking)
 type Booking @model @auth(rules: [
-  # แก้ไขกฎตรงนี้: เปลี่ยนเป็น allow: private เพื่อให้ Admin (ที่เป็น User อื่น) ลบข้อมูลได้
+  # อนุญาตให้ทุกคนที่ล็อกอิน (Private) สามารถ Create, Read, Update, Delete ได้
+  # เพื่อให้ Admin สามารถลบ/แก้ไขข้อมูลของลูกค้าได้ และระบบเช็คคิวทำงานได้ถูกต้อง
   { allow: private }
 ]) {
   id: ID!
@@ -19,7 +20,9 @@ type Booking @model @auth(rules: [
 
 # ตารางเก็บสินค้า (Part)
 type Part @model @auth(rules: [
+  # allow: public เพื่อให้หน้าเว็บดึงข้อมูลมาแสดงได้โดยไม่ต้อง login (กรณีอยากโชว์ของ)
   { allow: public }, 
+  # allow: private เพื่อให้ Admin ที่ login แล้วสามารถเพิ่ม/ลบ/แก้ไขได้
   { allow: private }
 ]) {
   id: ID!
@@ -28,4 +31,5 @@ type Part @model @auth(rules: [
   name: String!
   price: Int!
   isFixed: Boolean!
+  stock: Int # เพิ่มฟิลด์นี้เพื่อเก็บจำนวนสต็อกสินค้า (ใส่ int เพื่อเก็บตัวเลขจำนวนเต็ม)
 }
