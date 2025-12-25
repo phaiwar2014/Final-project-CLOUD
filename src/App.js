@@ -7,7 +7,7 @@ import {
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
   LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, 
-  DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, PlayCircle, CheckSquare, AlertTriangle, Package
+  DownloadCloud, History, MinusCircle, PlusCircle, Briefcase, PlayCircle, CheckSquare, AlertTriangle, Package, DollarSign, FileText
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -25,15 +25,14 @@ try {
 
 const client = generateClient();
 
-// --- 🔒 กำหนดรายชื่อผู้ดูแลระบบ (รวมช่างด้วย) ---
-const ADMIN_LIST = [
-    'phai',           
-    'aj', 
-    'karn',
-    'phai2',
-    'admin', 
-    'admin@example.com'           
-];
+// --- 🔒 CONFIGURATION: ROLES & USERS ---
+// กำหนดรายชื่อ User ของแต่ละฝ่ายที่นี่
+const ADMIN_LIST = ['admin', 'phai', 'admin@example.com']; 
+const MECHANIC_LIST = ['phais', 'mechanic02', 'karn']; 
+const ACCOUNTANT_LIST = ['phaih', 'aj']; 
+
+// รวม Staff ทั้งหมดเพื่อเช็คสิทธิ์เข้าหลังบ้าน
+const ALL_STAFF_LIST = [...ADMIN_LIST, ...MECHANIC_LIST, ...ACCOUNTANT_LIST];
 
 const INITIAL_SEED_DATA = [
   { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false, stock: 50 },
@@ -88,10 +87,9 @@ const MILEAGE_RULES = {
   100000: { hours: 3, items: ['engineOil', 'oilFilter', 'drainWasher'] }
 };
 
-const MAX_HOURS_PER_SLOT = 4; // ความจุสูงสุด 4 ชม. ต่อรอบ
+const MAX_HOURS_PER_SLOT = 4;
 
 // --- Component: Mechanic Job Card ---
-// การ์ดงานช่าง แยกออกมาเพื่อความสะอาดและประสิทธิภาพ
 const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
   const { parsedItems, isStockSufficient, insufficientParts } = useMemo(() => {
     let isStockSufficient = true;
@@ -102,7 +100,7 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
       const parsed = JSON.parse(job.selectedItems);
       const allParts = Object.values(partsCatalog).flatMap(c => c.options);
 
-      // Case 1: New Format with IDs (Reliable for Stock)
+      // Case 1: New Format with IDs
       if (parsed.ids && Array.isArray(parsed.ids)) {
         parsedItems = parsed.ids.map(id => {
           const part = allParts.find(p => p.id === id);
@@ -118,12 +116,11 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
           };
         });
       } else {
-        // Case 2: Old Format (Text only) - Fuzzy Match Logic
+        // Case 2: Old Format (Text only)
         const displayData = parsed.display || parsed;
         parsedItems = Object.entries(displayData).map(([key, val]) => {
           const nameMatch = val.match(/^(.*?)\s\(\d+\)$/);
           const cleanName = nameMatch ? nameMatch[1] : val;
-
           const part = allParts.find(p => p.name === cleanName || val.includes(p.name));
           const stock = part ? (part.stock || 0) : null;
 
@@ -140,9 +137,7 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
           };
         });
       }
-    } catch (e) {
-      // Error handling
-    }
+    } catch (e) { }
     return { parsedItems, isStockSufficient, insufficientParts };
   }, [job.selectedItems, partsCatalog]);
 
@@ -158,7 +153,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
         <h4 className="text-xl font-black text-slate-800 mb-1">{job.carBrand} ({job.licensePlate})</h4>
         <p className="text-sm text-slate-500 mb-4">เช็คระยะ {job.mileage.toLocaleString()} km</p>
 
-        {/* รายการอะไหล่พร้อมแสดงสถานะสต็อก */}
         <div className="bg-gray-50 p-4 rounded-xl mb-4">
           <h5 className="font-bold text-xs text-gray-400 uppercase mb-2 flex items-center gap-1"><CheckSquare size={12} /> รายการอะไหล่ที่ต้องเบิก</h5>
           <ul className="text-sm space-y-2">
@@ -174,7 +168,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
                 )}
               </li>
             ))}
-            {parsedItems.length === 0 && <li className="text-red-400">ไม่สามารถอ่านรายการได้</li>}
           </ul>
         </div>
       </div>
@@ -219,14 +212,9 @@ function GarageApp({ signOut, user }) {
   
   // State หลัก
   const [data, setData] = useState({ 
-    mileage: '', 
-    carBrand: '', 
-    carYear: '', 
-    licensePlate: '', 
+    mileage: '', carBrand: '', carYear: '', licensePlate: '', 
     phoneNumber: user?.attributes?.phone_number || '', 
-    selectedParts: {}, 
-    date: '', 
-    time: '' 
+    selectedParts: {}, date: '', time: '' 
   });
 
   useEffect(() => {
@@ -251,16 +239,17 @@ function GarageApp({ signOut, user }) {
   const [adminDateFilter, setAdminDateFilter] = useState('');
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
-  // Capacity Checking State
   const [slotStatus, setSlotStatus] = useState(null);
   const [checkingSlots, setCheckingSlots] = useState(false);
 
-  const isAdmin = useMemo(() => 
-    ADMIN_LIST.includes(user?.username) || (user?.attributes?.email && ADMIN_LIST.includes(user.attributes.email))
-  , [user]);
+  // --- 👮‍♂️ CHECK ROLES ---
+  const currentUser = user?.username || user?.attributes?.email;
+  const isAdmin = useMemo(() => ADMIN_LIST.includes(user?.username) || (user?.attributes?.email && ADMIN_LIST.includes(user.attributes.email)), [user]);
+  const isMechanic = useMemo(() => MECHANIC_LIST.includes(user?.username), [user]);
+  const isAccountant = useMemo(() => ACCOUNTANT_LIST.includes(user?.username), [user]);
+  const isStaff = isAdmin || isMechanic || isAccountant; // รวมทุกคนที่มีสิทธิ์เข้าหลังบ้าน
 
   // --- FETCH DATA ---
-
   const fetchData = useCallback(async () => {
     try {
       if (!config) return; 
@@ -308,36 +297,27 @@ function GarageApp({ signOut, user }) {
   }, [fetchData]);
 
   // --- CAPACITY LOGIC ---
-
   const checkAvailability = useCallback(async (selectedDate) => {
     if (!selectedDate) return;
-    
     setCheckingSlots(true);
     setSlotStatus(null); 
-
     try {
         const resp = await client.graphql({
             query: queries.listBookings,
             variables: { filter: { bookingDate: { eq: selectedDate }, status: { ne: "CANCELLED" } } }
         });
         const dayBookings = resp.data.listBookings.items;
-        
-        let morningUsed = 0;
-        let afternoonUsed = 0;
-
+        let morningUsed = 0; let afternoonUsed = 0;
         dayBookings.forEach(b => {
             const m = parseInt(b.mileage);
             const rule = MILEAGE_RULES[m];
             const duration = rule ? rule.hours : 1; 
-            
             if (b.bookingTime.startsWith('08')) morningUsed += duration;
             if (b.bookingTime.startsWith('13')) afternoonUsed += duration;
         });
-
         const currentMileage = parseInt(data.mileage); 
         const currentRule = MILEAGE_RULES[currentMileage];
         const currentTaskHours = (currentRule && currentRule.hours > 0) ? currentRule.hours : 1;
-
         setSlotStatus({
             morning: {
                 used: morningUsed,
@@ -354,17 +334,11 @@ function GarageApp({ signOut, user }) {
                 needed: currentTaskHours
             }
         });
-    } catch (e) {
-        console.error(e);
-    } finally {
-        setCheckingSlots(false);
-    }
+    } catch (e) { console.error(e); } finally { setCheckingSlots(false); }
   }, [data.mileage]); 
 
   useEffect(() => {
-    if (page === 'schedule' && data.date) {
-      checkAvailability(data.date);
-    }
+    if (page === 'schedule' && data.date) { checkAvailability(data.date); }
   }, [page, data.date, checkAvailability]);
 
   const handleDateChange = (e) => {
@@ -372,63 +346,40 @@ function GarageApp({ signOut, user }) {
       setData(prev => ({...prev, date: val, time: ''}));
   };
 
-  // --- ADMIN & MECHANIC ACTIONS ---
-
+  // --- ACTIONS ---
   const handleUpdateStatus = async (id, newStatus) => {
-    // 1. หาข้อมูล Booking เพื่อตรวจสอบ
     const booking = allBookings.find(b => b.id === id);
     if (!booking) return;
 
     let confirmMsg = `ยืนยันเปลี่ยนสถานะเป็น ${newStatus}?`;
-    if (newStatus === 'IN_PROGRESS') {
-        confirmMsg = "ยืนยันเริ่มงานซ่อม? ระบบจะตัดสต็อกอะไหล่อัตโนมัติ";
-    }
+    if (newStatus === 'IN_PROGRESS') confirmMsg = "ยืนยันเริ่มงานซ่อม? ระบบจะตัดสต็อกอะไหล่อัตโนมัติ";
+    if (newStatus === 'CLOSED') confirmMsg = "ยืนยันการชำระเงินและปิดงาน?";
 
     if (!window.confirm(confirmMsg)) return;
 
     setLoading(true);
     try {
-        // 2. ถ้าเป็นการเริ่มงาน (IN_PROGRESS) ให้ตัดสต็อก
         if (newStatus === 'IN_PROGRESS') {
             try {
                 const parsedItems = JSON.parse(booking.selectedItems);
-                
                 if (parsedItems.ids && Array.isArray(parsedItems.ids)) {
                     const allPartsFlat = [];
                     Object.values(partsCatalog).forEach(cat => allPartsFlat.push(...cat.options));
-                    
                     const updatePromises = parsedItems.ids.map(async (itemId) => {
                         const part = allPartsFlat.find(p => p.id === itemId);
                         if (part) {
-                            const currentStock = part.stock || 0;
-                            const newStock = currentStock > 0 ? currentStock - 1 : 0;
-                            return client.graphql({
-                                query: mutations.updatePart,
-                                variables: { input: { id: itemId, stock: newStock } }
-                            });
+                            const newStock = (part.stock || 0) > 0 ? (part.stock || 0) - 1 : 0;
+                            return client.graphql({ query: mutations.updatePart, variables: { input: { id: itemId, stock: newStock } } });
                         }
                     });
-                    
                     await Promise.all(updatePromises);
-                    console.log("Stock deducted successfully");
                 }
-            } catch (stockErr) {
-                console.error("Stock deduction error:", stockErr);
-                alert("คำเตือน: ไม่สามารถตัดสต็อกอัตโนมัติได้ (ข้อมูลการจองอาจเป็นเวอร์ชันเก่า)");
-            }
+            } catch (stockErr) { console.error("Stock deduction error:", stockErr); }
         }
 
-        // 3. อัปเดตสถานะงาน
-        await client.graphql({
-            query: mutations.updateBooking,
-            variables: { input: { id, status: newStatus } }
-        });
+        await client.graphql({ query: mutations.updateBooking, variables: { input: { id, status: newStatus } } });
         fetchData(); 
-    } catch (err) {
-        alert('Error: ' + err.message);
-    } finally {
-        setLoading(false);
-    }
+    } catch (err) { alert('Error: ' + err.message); } finally { setLoading(false); }
   };
 
   const handleAddPart = async (e) => {
@@ -465,102 +416,47 @@ function GarageApp({ signOut, user }) {
   const handleUpdateStock = async (id, currentStock, change) => {
     const newStock = (currentStock || 0) + change;
     if (newStock < 0) return; 
-
     try {
-        await client.graphql({
-            query: mutations.updatePart,
-            variables: { input: { id, stock: newStock } }
-        });
-        const updatedCatalog = { ...partsCatalog };
-        Object.keys(updatedCatalog).forEach(key => {
-            const index = updatedCatalog[key].options.findIndex(p => p.id === id);
-            if (index !== -1) {
-                updatedCatalog[key].options[index].stock = newStock;
-            }
-        });
-        setPartsCatalog(updatedCatalog);
-    } catch (err) {
-        console.error("Update stock error:", err);
-        alert("ไม่สามารถอัปเดตสต็อกได้");
-    }
+        await client.graphql({ query: mutations.updatePart, variables: { input: { id, stock: newStock } } });
+        fetchData(); // Reload to sync state
+    } catch (err) { alert("ไม่สามารถอัปเดตสต็อกได้"); }
   };
 
   const handleConfirmBooking = async (id) => {
     if(!window.confirm('ยืนยันรับงานจองนี้หรือไม่?')) return;
     setLoading(true);
     try {
-        await client.graphql({
-            query: mutations.updateBooking,
-            variables: { input: { id, status: "CONFIRMED" } }
-        });
+        await client.graphql({ query: mutations.updateBooking, variables: { input: { id, status: "CONFIRMED" } } });
         fetchData(); 
-    } catch (err) {
-        console.error("Update error:", err);
-        alert('เกิดข้อผิดพลาด: ' + (err.message || JSON.stringify(err)));
-    } finally {
-        setLoading(false);
-    }
+    } catch (err) { alert('เกิดข้อผิดพลาด: ' + (err.message || JSON.stringify(err))); } finally { setLoading(false); }
   };
 
   const handleDeleteBooking = async (id) => {
     if(!window.confirm('ยืนยันการลบรายการจองนี้? ข้อมูลจะถูกลบออกจาก Database ถาวร')) return;
     setLoading(true);
     try {
-        await client.graphql({
-            query: mutations.deleteBooking,
-            variables: { input: { id } }
-        });
-        alert("ลบรายการจองเรียบร้อยแล้ว");
+        await client.graphql({ query: mutations.deleteBooking, variables: { input: { id } } });
         fetchData(); 
-    } catch (err) {
-        console.error("Delete error:", err);
-        let msg = err.message;
-        if (!msg && err.errors && err.errors.length > 0) {
-            msg = err.errors[0].message;
-        }
-        if (!msg) msg = JSON.stringify(err);
-        alert('เกิดข้อผิดพลาดในการลบ: ' + msg);
-    } finally {
-        setLoading(false);
-    }
+    } catch (err) { alert('เกิดข้อผิดพลาดในการลบ'); } finally { setLoading(false); }
   };
 
   const handleCleanupDuplicates = async () => {
-    if(!window.confirm("⚠️ คำเตือน: ระบบจะลบสินค้าที่ชื่อและราคาซ้ำกันออก\nยืนยันหรือไม่?")) return;
+    if(!window.confirm("⚠️ ยืนยันลบข้อมูลซ้ำ?")) return;
     setLoading(true);
     try {
         const partData = await client.graphql({ query: queries.listParts });
         const allParts = partData.data.listParts.items;
         const seen = new Set();
         const duplicates = [];
-        
         allParts.forEach(part => {
             const uniqueKey = `${part.categoryKey}|${part.name}|${part.price}`;
-            if (seen.has(uniqueKey)) {
-                duplicates.push(part.id);
-            } else {
-                seen.add(uniqueKey);
-            }
+            if (seen.has(uniqueKey)) { duplicates.push(part.id); } else { seen.add(uniqueKey); }
         });
-
-        if (duplicates.length === 0) {
-            alert("✅ Database ปกติ ไม่มีข้อมูลซ้ำ");
-            setLoading(false);
-            return;
-        }
-
-        let count = 0;
-        for (const id of duplicates) {
-             await client.graphql({ query: mutations.deletePart, variables: { input: { id } } });
-             count++;
-        }
-        alert(`🧹 ลบข้อมูลซ้ำเรียบร้อย! (${count} รายการ)`);
+        if (duplicates.length === 0) { alert("✅ ไม่พบข้อมูลซ้ำ"); setLoading(false); return; }
+        for (const id of duplicates) { await client.graphql({ query: mutations.deletePart, variables: { input: { id } } }); }
+        alert(`🧹 ลบข้อมูลซ้ำเรียบร้อย!`);
         fetchData(); 
-    } catch (e) {
-        alert("เกิดข้อผิดพลาด: " + e.message);
-    } finally {
-        setLoading(false);
-    }
+    } catch (e) { alert("Error: " + e.message); } finally { setLoading(false); }
   };
 
   // --- USER ACTIONS ---
@@ -590,13 +486,12 @@ function GarageApp({ signOut, user }) {
     setLoading(true);
     const total = calcTotal();
     const formattedItems = {};
-    const itemIds = []; // 🆕 เก็บ ID สินค้าเพื่อใช้ตัดสต็อก
-
+    const itemIds = []; 
     Object.keys(data.selectedParts).forEach(k => {
         const opt = partsCatalog[k]?.options.find(o => o.id === data.selectedParts[k]);
         if(opt) {
             formattedItems[partsCatalog[k].name] = `${opt.name} (${opt.price})`;
-            itemIds.push(opt.id); // เก็บ ID
+            itemIds.push(opt.id);
         }
     });
 
@@ -610,7 +505,6 @@ function GarageApp({ signOut, user }) {
       carYear: data.carYear,
       licensePlate: data.licensePlate,
       mileage: parseInt(data.mileage),
-      // 🆕 บันทึกทั้งชื่อสำหรับโชว์ (display) และ IDs สำหรับตัดสต็อก
       selectedItems: JSON.stringify({ display: formattedItems, ids: itemIds }),
       totalPrice: total.total,
       bookingDate: data.date,
@@ -625,7 +519,6 @@ function GarageApp({ signOut, user }) {
     finally { setLoading(false); }
   };
 
-  // --- HELPER: Get Low Stock Items ---
   const getLowStockItems = () => {
     const lowItems = [];
     Object.keys(partsCatalog).forEach(catKey => {
@@ -646,9 +539,9 @@ function GarageApp({ signOut, user }) {
         <nav className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg">
           <div className="font-bold text-xl flex gap-2 items-center"><Wrench className="text-orange-500"/> AutoServe Pro</div>
           <div className="flex gap-2">
-             {isAdmin && (
+             {isStaff && (
                 <button onClick={() => setPage('admin')} className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
-                    <Lock size={16}/> สำหรับผู้ดูแล
+                    <Lock size={16}/> Staff Portal
                 </button>
              )}
              <button onClick={signOut} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">Logout</button>
@@ -680,13 +573,9 @@ function GarageApp({ signOut, user }) {
                 <button onClick={() => setPage('landing')} className="font-bold text-gray-500 flex items-center gap-1"><ArrowLeft size={18}/> กลับหน้าหลัก</button>
                 <h2 className="font-bold text-lg flex items-center gap-2"><History size={20} className="text-orange-500"/> ประวัติการจองของฉัน</h2>
             </div>
-
             <div className="max-w-3xl mx-auto p-4 space-y-4">
                 {userBookings.length === 0 ? (
-                    <div className="text-center p-10 text-gray-400 bg-white rounded-2xl shadow-sm border border-dashed">
-                        <Calendar size={48} className="mx-auto mb-4 opacity-20"/>
-                        <p>คุณยังไม่มีประวัติการจอง</p>
-                    </div>
+                    <div className="text-center p-10 text-gray-400 bg-white rounded-2xl shadow-sm border border-dashed"><p>คุณยังไม่มีประวัติการจอง</p></div>
                 ) : (
                     userBookings.map(b => (
                         <div key={b.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
@@ -694,46 +583,19 @@ function GarageApp({ signOut, user }) {
                                 <div>
                                     <div className="text-sm text-gray-400 font-bold mb-1">วันนัดหมาย</div>
                                     <div className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                        {b.bookingDate}
-                                        <span className={`text-sm px-2 py-1 rounded-lg ${b.bookingTime.startsWith('08') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                                            {b.bookingTime.substring(0,5)} น.
-                                        </span>
+                                        {b.bookingDate} <span className={`text-sm px-2 py-1 rounded-lg ${b.bookingTime.startsWith('08') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{b.bookingTime.substring(0,5)} น.</span>
                                     </div>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                    b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 
-                                    b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                                    b.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                    b.status === 'COMPLETED' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600'
-                                }`}>
-                                    {b.status === 'PENDING' ? 'รอยืนยัน' : 
-                                     b.status === 'CONFIRMED' ? 'ยืนยันแล้ว' :
-                                     b.status === 'IN_PROGRESS' ? 'กำลังซ่อม' :
-                                     b.status === 'COMPLETED' ? 'ซ่อมเสร็จ' : b.status}
-                                </span>
+                                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-gray-100">{b.status}</span>
                             </div>
-                            
                             <div className="grid grid-cols-2 gap-4 text-sm mb-4 bg-slate-50 p-4 rounded-xl">
-                                <div>
-                                    <div className="text-slate-400 text-xs">รถยนต์</div>
-                                    <div className="font-bold">{b.carBrand} ({b.licensePlate})</div>
-                                </div>
-                                <div>
-                                    <div className="text-slate-400 text-xs">ระยะทาง</div>
-                                    <div className="font-bold">{b.mileage.toLocaleString()} km</div>
-                                </div>
+                                <div><div className="text-slate-400 text-xs">รถยนต์</div><div className="font-bold">{b.carBrand} ({b.licensePlate})</div></div>
+                                <div><div className="text-slate-400 text-xs">ระยะทาง</div><div className="font-bold">{b.mileage.toLocaleString()} km</div></div>
                             </div>
-
                             <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                                 <div className="text-lg font-bold text-slate-900">฿{b.totalPrice.toLocaleString()}</div>
-                                {/* อนุญาตให้ลบได้เฉพาะสถานะ PENDING หรือ CONFIRMED */}
                                 {['PENDING', 'CONFIRMED'].includes(b.status) && (
-                                    <button 
-                                        onClick={() => handleDeleteBooking(b.id)}
-                                        className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
-                                    >
-                                        <Trash2 size={16}/> ยกเลิกการจอง
-                                    </button>
+                                    <button onClick={() => handleDeleteBooking(b.id)} className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"><Trash2 size={16}/> ยกเลิกการจอง</button>
                                 )}
                             </div>
                         </div>
@@ -745,10 +607,9 @@ function GarageApp({ signOut, user }) {
   }
 
   if (page === 'admin') {
-    if (!isAdmin) return <div className="p-20 text-center">Access Denied</div>;
+    if (!isStaff) return <div className="p-20 text-center">Access Denied</div>;
     
     const uniqueDates = [...new Set(allBookings.map(b => b.bookingDate))].sort().reverse();
-
     const filteredBookings = allBookings.filter(b => {
         const matchesSearch = b.customerName.toLowerCase().includes(adminBookingSearch.toLowerCase()) || 
                               b.licensePlate.toLowerCase().includes(adminBookingSearch.toLowerCase());
@@ -756,12 +617,8 @@ function GarageApp({ signOut, user }) {
         return matchesSearch && matchesDate;
     });
 
-    // กรองเฉพาะงานที่ช่างต้องดู (Confirmed, In Progress)
-    const mechanicJobs = allBookings.filter(b => 
-        ['CONFIRMED', 'IN_PROGRESS'].includes(b.status) &&
-        (adminDateFilter ? b.bookingDate === adminDateFilter : true)
-    );
-
+    const mechanicJobs = allBookings.filter(b => ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && (adminDateFilter ? b.bookingDate === adminDateFilter : true));
+    const completedJobs = allBookings.filter(b => ['COMPLETED', 'CLOSED'].includes(b.status) && (adminDateFilter ? b.bookingDate === adminDateFilter : true));
     const lowStockItems = getLowStockItems();
 
     return (
@@ -769,67 +626,68 @@ function GarageApp({ signOut, user }) {
             <div className="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-md overflow-x-auto">
                 <div className="flex items-center gap-4 min-w-max">
                     <button onClick={() => setPage('landing')} className="p-2 hover:bg-slate-800 rounded-lg"><ArrowLeft/></button>
-                    <h2 className="font-bold text-xl">Admin Control Center</h2>
+                    <h2 className="font-bold text-xl">Staff Control Center</h2>
                 </div>
                 <div className="flex bg-slate-800 p-1 rounded-xl min-w-max ml-4">
-                    <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
-                        <ClipboardList size={18}/> คิวงานลูกค้า
-                    </button>
-                    <button onClick={() => setAdminTab('mechanic')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'mechanic' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
-                        <Briefcase size={18}/> งานช่าง
-                    </button>
-                    <button onClick={() => setAdminTab('parts')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'parts' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
-                        <Database size={18}/> จัดการสินค้า
-                    </button>
-                     <button onClick={() => setAdminTab('lowstock')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'lowstock' ? 'bg-red-500 text-white' : 'text-slate-400'}`}>
-                        <AlertTriangle size={18}/> สินค้าใกล้หมด {lowStockItems.length > 0 && <span className="bg-white text-red-600 px-1.5 rounded-full text-xs">{lowStockItems.length}</span>}
-                    </button>
+                    {/* เมนูสำหรับ Admin และ Reception */}
+                    {(isAdmin || ADMIN_LIST.includes(user.username)) && (
+                        <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
+                            <ClipboardList size={18}/> คิวงานลูกค้า
+                        </button>
+                    )}
+                    {/* เมนูสำหรับ ช่าง */}
+                    {(isAdmin || isMechanic) && (
+                        <button onClick={() => setAdminTab('mechanic')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'mechanic' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
+                            <Briefcase size={18}/> งานช่าง
+                        </button>
+                    )}
+                    {/* เมนูสำหรับ บัญชี */}
+                    {(isAdmin || isAccountant) && (
+                        <button onClick={() => setAdminTab('accounting')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'accounting' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
+                            <DollarSign size={18}/> บัญชี/ปิดงาน
+                        </button>
+                    )}
+                    {/* เมนูสำหรับ Admin และ ช่าง (ดูสต็อก) */}
+                    {(isAdmin || isMechanic) && (
+                        <>
+                            <button onClick={() => setAdminTab('parts')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'parts' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
+                                <Database size={18}/> สต็อก
+                            </button>
+                            <button onClick={() => setAdminTab('lowstock')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'lowstock' ? 'bg-red-500 text-white' : 'text-slate-400'}`}>
+                                <AlertTriangle size={18}/> เตือน {lowStockItems.length > 0 && <span className="bg-white text-red-600 px-1.5 rounded-full text-xs">{lowStockItems.length}</span>}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
             <div className="max-w-6xl mx-auto p-4 md:p-8">
                 {/* --- 1. หน้าคิวงาน (Reception) --- */}
-                {adminTab === 'bookings' && (
+                {adminTab === 'bookings' && (isAdmin || ADMIN_LIST.includes(user.username)) && (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-blue-500">
-                                <div className="text-slate-400 text-xs font-bold uppercase mb-1">คิวงานทั้งหมด</div>
-                                <div className="text-3xl font-black">{allBookings.length} รายการ</div>
-                            </div>
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-orange-500 col-span-2">
-                                <div className="flex gap-2">
-                                    <div className="relative w-1/3">
-                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-                                        <select 
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-orange-500"
-                                            value={adminDateFilter}
-                                            onChange={e => setAdminDateFilter(e.target.value)}
-                                        >
-                                            <option value="">-- ทุกวันที่ --</option>
-                                            {uniqueDates.map(date => (<option key={date} value={date}>{date}</option>))}
-                                        </select>
-                                    </div>
-                                    <div className="relative w-2/3">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-                                        <input 
-                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-orange-500" 
-                                            placeholder="ค้นหาชื่อลูกค้า หรือ ทะเบียนรถ..."
-                                            value={adminBookingSearch}
-                                            onChange={e => setAdminBookingSearch(e.target.value)}
-                                        />
-                                    </div>
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-blue-500 mb-6">
+                           <div className="flex gap-4">
+                                <div className="relative flex-1">
+                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                                    <select className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none" value={adminDateFilter} onChange={e => setAdminDateFilter(e.target.value)}>
+                                        <option value="">-- ทุกวันที่ --</option>
+                                        {uniqueDates.map(date => (<option key={date} value={date}>{date}</option>))}
+                                    </select>
                                 </div>
-                            </div>
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                                    <input className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none" placeholder="ค้นหาลูกค้า..." value={adminBookingSearch} onChange={e => setAdminBookingSearch(e.target.value)}/>
+                                </div>
+                           </div>
                         </div>
 
                         <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b">
-                                        <th className="p-6">วัน / รอบเวลา</th>
+                                        <th className="p-6">วัน/เวลา</th>
                                         <th className="p-6">ลูกค้า</th>
-                                        <th className="p-6">ข้อมูลรถ</th>
-                                        <th className="p-6 text-right">ยอดรวม</th>
+                                        <th className="p-6">รถยนต์</th>
                                         <th className="p-6 text-center">สถานะ</th>
                                         <th className="p-6 text-center">จัดการ</th>
                                     </tr>
@@ -839,58 +697,45 @@ function GarageApp({ signOut, user }) {
                                         <tr key={b.id} className="hover:bg-orange-50/30 transition">
                                             <td className="p-6">
                                                 <div className="font-bold text-slate-800">{b.bookingDate}</div>
-                                                <div className={`text-xs font-bold flex items-center gap-1 ${b.bookingTime.startsWith('08') ? 'text-orange-500' : 'text-blue-500'}`}>
-                                                    <Clock size={12}/> {b.bookingTime.startsWith('08') ? 'รอบเช้า' : 'รอบบ่าย'} ({b.bookingTime.substring(0,5)} น.)
-                                                </div>
+                                                <div className="text-xs text-blue-500">{b.bookingTime.substring(0,5)} น.</div>
                                             </td>
                                             <td className="p-6">
-                                                <div className="font-bold flex items-center gap-2"><User size={14}/> {b.customerName}</div>
-                                                <div className="text-slate-400 flex items-center gap-2"><Phone size={14}/> {b.phoneNumber}</div>
+                                                <div className="font-bold">{b.customerName}</div>
+                                                <div className="text-xs text-slate-400">{b.phoneNumber}</div>
                                             </td>
                                             <td className="p-6">
-                                                <div className="font-black text-slate-700">{b.licensePlate}</div>
-                                                <div className="text-xs text-slate-400">{b.carBrand} ({b.carYear}) | {b.mileage.toLocaleString()} km</div>
+                                                <div className="font-black">{b.licensePlate}</div>
+                                                <div className="text-xs text-slate-400">{b.carBrand}</div>
                                             </td>
-                                            <td className="p-6 text-right font-black text-slate-900">{b.totalPrice.toLocaleString()}.-</td>
-                                            <td className="p-6 text-center">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                    {b.status}
-                                                </span>
-                                            </td>
+                                            <td className="p-6 text-center"><span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-gray-100">{b.status}</span></td>
                                             <td className="p-6 text-center">
                                                 <div className="flex justify-center gap-2">
                                                     {b.status === 'PENDING' && (
-                                                        <button onClick={() => handleConfirmBooking(b.id)} className="text-green-500 hover:text-green-700 p-2 rounded-full hover:bg-green-50 transition" title="ยืนยันการจอง">
-                                                            <CheckCircle size={18}/>
-                                                        </button>
+                                                        <button onClick={() => handleConfirmBooking(b.id)} className="text-green-500 hover:bg-green-50 p-2 rounded-full"><CheckCircle size={18}/></button>
                                                     )}
-                                                    <button onClick={() => handleDeleteBooking(b.id)} className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition" title="ลบรายการจองนี้">
-                                                        <Trash2 size={18}/>
-                                                    </button>
+                                                    <button onClick={() => handleDeleteBooking(b.id)} className="text-red-400 hover:bg-red-50 p-2 rounded-full"><Trash2 size={18}/></button>
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                            {filteredBookings.length === 0 && <div className="p-20 text-center text-slate-300 italic">ไม่พบข้อมูลการจอง</div>}
                         </div>
                     </div>
                 )}
 
                 {/* --- 2. หน้าช่าง (Mechanic) --- */}
-                {adminTab === 'mechanic' && (
+                {adminTab === 'mechanic' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-4">
-                            <h3 className="font-bold flex items-center gap-2"><Briefcase/> งานที่รอซ่อม (Confirmed / In Progress)</h3>
+                            <h3 className="font-bold flex items-center gap-2"><Briefcase/> งานที่รอซ่อม</h3>
                             <select className="p-2 border rounded-xl text-sm" value={adminDateFilter} onChange={e => setAdminDateFilter(e.target.value)}>
                                 <option value="">-- ทุกวันที่ --</option>
                                 {uniqueDates.map(date => (<option key={date} value={date}>{date}</option>))}
                             </select>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {mechanicJobs.length === 0 && <div className="col-span-2 p-10 text-center bg-white rounded-2xl border border-dashed text-gray-400">ไม่มีงานค้าง</div>}
+                            {mechanicJobs.length === 0 && <div className="col-span-2 p-10 text-center text-gray-400">ไม่มีงานค้าง</div>}
                             {mechanicJobs.map(job => (
                                 <MechanicJobCard key={job.id} job={job} partsCatalog={partsCatalog} onUpdateStatus={handleUpdateStatus} />
                             ))}
@@ -898,8 +743,63 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
 
+                {/* --- 5. หน้าบัญชี (Accounting) --- */}
+                {adminTab === 'accounting' && (isAdmin || isAccountant) && (
+                     <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-green-500">
+                                <div className="text-slate-400 text-xs font-bold uppercase mb-1">ยอดขายรวม (ที่ปิดงานแล้ว)</div>
+                                <div className="text-3xl font-black text-green-600">
+                                    {allBookings.filter(b => b.status === 'CLOSED').reduce((sum, b) => sum + b.totalPrice, 0).toLocaleString()} บาท
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-blue-500">
+                                <div className="text-slate-400 text-xs font-bold uppercase mb-1">รอเก็บเงิน</div>
+                                <div className="text-3xl font-black text-blue-600">
+                                    {completedJobs.filter(b => b.status === 'COMPLETED').length} รายการ
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden">
+                             <div className="p-4 bg-slate-50 border-b font-bold flex gap-2 items-center"><DollarSign/> รายการรอชำระเงิน & ปิดงาน</div>
+                             <table className="w-full text-left">
+                                <thead className="bg-slate-50 text-[10px] uppercase text-slate-400">
+                                    <tr>
+                                        <th className="p-4">วันที่</th>
+                                        <th className="p-4">ลูกค้า</th>
+                                        <th className="p-4">ทะเบียน</th>
+                                        <th className="p-4 text-right">ยอดชำระ</th>
+                                        <th className="p-4 text-center">สถานะ</th>
+                                        <th className="p-4 text-center">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y text-sm">
+                                    {completedJobs.map(b => (
+                                        <tr key={b.id} className="hover:bg-slate-50">
+                                            <td className="p-4">{b.bookingDate}</td>
+                                            <td className="p-4 font-bold">{b.customerName}</td>
+                                            <td className="p-4">{b.licensePlate}</td>
+                                            <td className="p-4 text-right font-black">{b.totalPrice.toLocaleString()}</td>
+                                            <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs ${b.status === 'CLOSED' ? 'bg-gray-200' : 'bg-green-100 text-green-700'}`}>{b.status}</span></td>
+                                            <td className="p-4 text-center">
+                                                {b.status === 'COMPLETED' && (
+                                                    <button onClick={() => handleUpdateStatus(b.id, 'CLOSED')} className="bg-green-600 text-white px-3 py-1 rounded shadow-sm text-xs hover:bg-green-700">
+                                                        ยืนยันชำระเงิน
+                                                    </button>
+                                                )}
+                                                {b.status === 'CLOSED' && <span className="text-gray-400 text-xs">เสร็จสิ้น</span>}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                             </table>
+                        </div>
+                     </div>
+                )}
+
                  {/* --- 4. 🆕 สินค้าใกล้หมด (Low Stock) --- */}
-                 {adminTab === 'lowstock' && (
+                 {adminTab === 'lowstock' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="bg-red-50 p-6 rounded-3xl border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div>
@@ -951,7 +851,7 @@ function GarageApp({ signOut, user }) {
                 )}
 
                 {/* --- 3. จัดการสินค้า (Inventory) --- */}
-                {adminTab === 'parts' && (
+                {adminTab === 'parts' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl">
                             <div className="flex items-center gap-2 text-slate-700 text-sm font-bold">
