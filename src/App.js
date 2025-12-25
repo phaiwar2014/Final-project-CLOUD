@@ -24,7 +24,8 @@ const client = generateClient();
 const ADMIN_LIST = [
     'phai',           
     'aj', 
-    'karn'            
+    'karn',
+    'phai2',           
 ];
 
 // --- ข้อมูลสำหรับเติมลง Database อัตโนมัติ (Seed Data) ---
