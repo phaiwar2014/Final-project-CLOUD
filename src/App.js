@@ -6,7 +6,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { 
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
-  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser
+  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -102,18 +102,28 @@ function GarageApp({ signOut, user }) {
     carBrand: '', 
     carYear: '', 
     licensePlate: '', 
-    phoneNumber: user?.attributes?.phone_number || '', // ดึงเบอร์จาก Cognito
+    phoneNumber: user?.attributes?.phone_number || '', // พยายามดึงเบอร์ตั้งแต่แรก
     selectedParts: {}, 
     date: '', 
     time: '' 
   });
 
-  // อัปเดตข้อมูลอัตโนมัติหาก User Profile โหลดช้า
+  // อัปเดตข้อมูลอัตโนมัติหาก User Profile โหลดช้า หรือเข้ามาทีหลัง
   useEffect(() => {
+    // ถ้าใน State ยังไม่มีเบอร์ แต่ใน Cognito มี -> ให้เอามาใส่
     if (user?.attributes?.phone_number && !data.phoneNumber) {
       setData(prev => ({ ...prev, phoneNumber: user.attributes.phone_number }));
     }
   }, [user, data.phoneNumber]);
+
+  // ฟังก์ชันดึงเบอร์จากโปรไฟล์ด้วยตัวเอง (Manual Fetch)
+  const pullPhoneFromProfile = () => {
+      if (user?.attributes?.phone_number) {
+          setData(prev => ({ ...prev, phoneNumber: user.attributes.phone_number }));
+      } else {
+          alert("ไม่พบข้อมูลเบอร์โทรศัพท์ในบัญชีของคุณ");
+      }
+  };
   
   // Admin UI State
   const [adminTab, setAdminTab] = useState('bookings'); 
@@ -586,13 +596,25 @@ function GarageApp({ signOut, user }) {
                     <input placeholder="ปีจดทะเบียน" className="p-4 bg-gray-50 border-none rounded-xl" value={data.carYear} onChange={e => setData({...data, carYear: e.target.value})}/>
                     <input placeholder="เลขทะเบียนรถ" className="p-4 bg-gray-50 border-none rounded-xl font-bold" value={data.licensePlate} onChange={e => setData({...data, licensePlate: e.target.value})}/>
                     
-                    {/* --- จุดเพิ่ม: ช่องกรอกเบอร์โทรศัพท์ (มีค่า default จาก Cognito) --- */}
-                    <input 
-                      placeholder="เบอร์โทรศัพท์ติดต่อ" 
-                      className="p-4 bg-gray-50 border-none rounded-xl font-bold" 
-                      value={data.phoneNumber} 
-                      onChange={e => setData({...data, phoneNumber: e.target.value})}
-                    />
+                    {/* --- จุดเพิ่ม: ช่องกรอกเบอร์โทรศัพท์ (มีปุ่ม Manual Fetch) --- */}
+                    <div className="relative">
+                        <input 
+                          placeholder="เบอร์โทรศัพท์ติดต่อ" 
+                          className="w-full p-4 bg-gray-50 border-none rounded-xl font-bold" 
+                          value={data.phoneNumber} 
+                          onChange={e => setData({...data, phoneNumber: e.target.value})}
+                        />
+                        {/* ปุ่มเล็กๆ สำหรับดึงเบอร์จากโปรไฟล์ ถ้าไม่ขึ้นอัตโนมัติ */}
+                        {user?.attributes?.phone_number && (
+                            <button 
+                                onClick={pullPhoneFromProfile}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-500 hover:text-blue-700 bg-white px-2 py-1 rounded shadow-sm border border-blue-100 flex items-center gap-1"
+                                title={`คลิกเพื่อใช้เบอร์: ${user.attributes.phone_number}`}
+                            >
+                                <DownloadCloud size={12}/> ใช้เบอร์ที่ลงทะเบียน
+                            </button>
+                        )}
+                    </div>
                 </div>
                 {data.carBrand && data.licensePlate && data.phoneNumber && 
                     <button onClick={() => setPage('schedule')} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xl flex justify-center items-center gap-2 mt-4 hover:bg-slate-800 transition shadow-xl">ไปเลือกวันเวลา <ChevronRight/></button>
