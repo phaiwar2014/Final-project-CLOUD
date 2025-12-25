@@ -6,7 +6,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { 
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
-  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud
+  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser, DownloadCloud, History
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -94,6 +94,7 @@ function GarageApp({ signOut, user }) {
   const [loading, setLoading] = useState(false);
   const [partsCatalog, setPartsCatalog] = useState({});
   const [allBookings, setAllBookings] = useState([]);
+  const [userBookings, setUserBookings] = useState([]); // 🆕 เก็บประวัติของ User
   const [isInitializing, setIsInitializing] = useState(false);
   
   // State หลัก
@@ -168,14 +169,21 @@ function GarageApp({ signOut, user }) {
       });
       setPartsCatalog(formattedParts);
 
+      // โหลดข้อมูลการจองทั้งหมด (เพื่อใช้ Admin และ เช็คคิว)
       const bookingData = await client.graphql({ query: queries.listBookings });
       const items = bookingData.data.listBookings.items;
-      setAllBookings(items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
+      const sortedItems = items.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+      setAllBookings(sortedItems);
+
+      // 🆕 กรองเฉพาะของ User เพื่อแสดงในหน้า History
+      const myName = user?.attributes?.name || user?.username || "Guest";
+      const myHistory = sortedItems.filter(b => b.customerName === myName || b.owner === user.username);
+      setUserBookings(myHistory);
       
     } catch (err) {
       console.error("Fetch error:", err);
     }
-  }, []); 
+  }, [user]); 
 
   useEffect(() => {
     fetchData();
@@ -287,10 +295,9 @@ function GarageApp({ signOut, user }) {
             variables: { input: { id } }
         });
         alert("ลบรายการจองเรียบร้อยแล้ว");
-        fetchData(); 
+        fetchData(); // โหลดข้อมูลใหม่
     } catch (err) {
         console.error("Delete error:", err);
-        // แสดง Error ที่ชัดเจนขึ้น
         let msg = err.message;
         if (!msg && err.errors && err.errors.length > 0) {
             msg = err.errors[0].message;
@@ -415,14 +422,82 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
+            {/* แก้ชื่อร้านตามที่คุณต้องการ */}
             <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
-            <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4 mx-auto">
-              <Calendar size={28}/> จองคิวเลย
-            </button>
+            <div className="flex flex-col md:flex-row gap-4 justify-center">
+                <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4">
+                <Calendar size={28}/> จองคิวเลย
+                </button>
+                {/* 🆕 ปุ่มประวัติการจอง */}
+                <button onClick={() => setPage('history')} className="bg-slate-100 text-slate-700 border-2 border-slate-200 px-8 py-5 rounded-2xl text-xl font-bold shadow-sm hover:bg-slate-200 transition flex items-center gap-3">
+                <History size={24}/> ประวัติการจอง
+                </button>
+            </div>
           </div>
         </div>
       </div>
+    );
+  }
+
+  // 🆕 หน้าประวัติการจองของ User
+  if (page === 'history') {
+    return (
+        <div className="min-h-screen bg-gray-50 pb-20">
+            <div className="bg-white p-4 shadow sticky top-0 z-50 flex gap-4 items-center rounded-lg mb-6">
+                <button onClick={() => setPage('landing')} className="font-bold text-gray-500 flex items-center gap-1"><ArrowLeft size={18}/> กลับหน้าหลัก</button>
+                <h2 className="font-bold text-lg flex items-center gap-2"><History size={20} className="text-orange-500"/> ประวัติการจองของฉัน</h2>
+            </div>
+
+            <div className="max-w-3xl mx-auto p-4 space-y-4">
+                {userBookings.length === 0 ? (
+                    <div className="text-center p-10 text-gray-400 bg-white rounded-2xl shadow-sm border border-dashed">
+                        <Calendar size={48} className="mx-auto mb-4 opacity-20"/>
+                        <p>คุณยังไม่มีประวัติการจอง</p>
+                    </div>
+                ) : (
+                    userBookings.map(b => (
+                        <div key={b.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <div className="text-sm text-gray-400 font-bold mb-1">วันนัดหมาย</div>
+                                    <div className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                        {b.bookingDate}
+                                        <span className={`text-sm px-2 py-1 rounded-lg ${b.bookingTime.startsWith('08') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {b.bookingTime.substring(0,5)} น.
+                                        </span>
+                                    </div>
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                                    {b.status}
+                                </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm mb-4 bg-slate-50 p-4 rounded-xl">
+                                <div>
+                                    <div className="text-slate-400 text-xs">รถยนต์</div>
+                                    <div className="font-bold">{b.carBrand} ({b.licensePlate})</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400 text-xs">ระยะทาง</div>
+                                    <div className="font-bold">{b.mileage.toLocaleString()} km</div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                                <div className="text-lg font-bold text-slate-900">฿{b.totalPrice.toLocaleString()}</div>
+                                <button 
+                                    onClick={() => handleDeleteBooking(b.id)}
+                                    className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
+                                >
+                                    <Trash2 size={16}/> ยกเลิกการจอง
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
     );
   }
 
