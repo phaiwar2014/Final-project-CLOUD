@@ -6,7 +6,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { 
   Calendar, CheckCircle, ChevronRight, Car, Wrench, RefreshCw, 
   Database, Trash2, Plus, ArrowLeft, Lock, Filter, Clock, 
-  LayoutDashboard, ClipboardList, Search, User, Phone
+  LayoutDashboard, ClipboardList, Search, User, Phone, Eraser
 } from 'lucide-react';
 
 // นำเข้าคำสั่ง GraphQL ที่ Amplify สร้างให้
@@ -96,17 +96,24 @@ function GarageApp({ signOut, user }) {
   const [allBookings, setAllBookings] = useState([]);
   const [isInitializing, setIsInitializing] = useState(false);
   
-  // เพิ่ม phoneNumber ใน state (ดึงค่าจาก user attribute ถ้ามี)
+  // State หลัก: ดึงเบอร์และชื่อจาก Cognito มาใส่เป็นค่าเริ่มต้น
   const [data, setData] = useState({ 
     mileage: '', 
     carBrand: '', 
     carYear: '', 
     licensePlate: '', 
-    phoneNumber: user?.attributes?.phone_number || '', 
+    phoneNumber: user?.attributes?.phone_number || '', // ดึงเบอร์จาก Cognito
     selectedParts: {}, 
     date: '', 
     time: '' 
   });
+
+  // อัปเดตข้อมูลอัตโนมัติหาก User Profile โหลดช้า
+  useEffect(() => {
+    if (user?.attributes?.phone_number && !data.phoneNumber) {
+      setData(prev => ({ ...prev, phoneNumber: user.attributes.phone_number }));
+    }
+  }, [user, data.phoneNumber]);
   
   // Admin UI State
   const [adminTab, setAdminTab] = useState('bookings'); 
@@ -145,7 +152,16 @@ function GarageApp({ signOut, user }) {
         if (!formattedParts[part.categoryKey]) {
           formattedParts[part.categoryKey] = { name: part.categoryName, options: [] };
         }
-        formattedParts[part.categoryKey].options.push(part);
+        
+        // --- จุดแก้ที่ 1: กรองตัวซ้ำใน Frontend ก่อนแสดงผล (Safety Net) ---
+        // เช็คว่ามีของชื่อนี้ราคาเท่านี้ในลิสต์หรือยัง ถ้ามีแล้วไม่ใส่เพิ่ม
+        const isDuplicate = formattedParts[part.categoryKey].options.some(
+            o => o.name === part.name && o.price === part.price
+        );
+
+        if (!isDuplicate) {
+            formattedParts[part.categoryKey].options.push(part);
+        }
       });
       setPartsCatalog(formattedParts);
 
@@ -243,6 +259,52 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert(e.message); }
   };
 
+  // --- จุดแก้ที่ 2: ฟังก์ชันล้างข้อมูลซ้ำใน Database ---
+  const handleCleanupDuplicates = async () => {
+    if(!window.confirm("⚠️ คำเตือน: ระบบจะค้นหาและ 'ลบ' สินค้าที่ชื่อและราคาซ้ำกันออกจาก Database ทั้งหมด\n\nยืนยันที่จะทำต่อหรือไม่?")) return;
+    setLoading(true);
+    try {
+        // 1. ดึงข้อมูลทั้งหมดมาตรวจสอบ
+        const partData = await client.graphql({ query: queries.listParts });
+        const allParts = partData.data.listParts.items;
+        
+        const seen = new Set();
+        const duplicates = [];
+        
+        allParts.forEach(part => {
+            // สร้าง Key เพื่อเช็คความซ้ำ (หมวด+ชื่อ+ราคา)
+            const uniqueKey = `${part.categoryKey}|${part.name}|${part.price}`;
+            if (seen.has(uniqueKey)) {
+                // ถ้าเคยเจอแล้ว แสดงว่าเป็นตัวซ้ำ ให้เก็บ ID ไว้ลบ
+                duplicates.push(part.id);
+            } else {
+                seen.add(uniqueKey);
+            }
+        });
+
+        if (duplicates.length === 0) {
+            alert("✅ ไม่พบข้อมูลซ้ำครับ Database ปกติดี");
+            setLoading(false);
+            return;
+        }
+
+        // 2. ลบตัวซ้ำออกทีละตัว
+        let count = 0;
+        for (const id of duplicates) {
+             await client.graphql({ query: mutations.deletePart, variables: { input: { id } } });
+             count++;
+        }
+        
+        alert(`🧹 ล้างข้อมูลซ้ำเรียบร้อย! ลบออกไปทั้งหมด ${count} รายการ`);
+        fetchData(); // โหลดหน้าจอใหม่
+    } catch (e) {
+        console.error(e);
+        alert("เกิดข้อผิดพลาดในการลบ: " + e.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   // --- USER ACTIONS ---
 
   const handleMileage = (km) => {
@@ -275,9 +337,12 @@ function GarageApp({ signOut, user }) {
         if(opt) formattedItems[partsCatalog[k].name] = `${opt.name} (${opt.price})`;
     });
 
+    const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
+    const finalPhoneNumber = data.phoneNumber || user?.attributes?.phone_number || "-";
+
     const input = {
-      customerName: user.username,
-      phoneNumber: data.phoneNumber || "-", // ใช้ค่าจาก state ที่แก้ไขได้
+      customerName: finalCustomerName,
+      phoneNumber: finalPhoneNumber,
       carBrand: data.carBrand,
       carYear: data.carYear,
       licensePlate: data.licensePlate,
@@ -416,6 +481,21 @@ function GarageApp({ signOut, user }) {
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* ส่วนหัวสำหรับจัดการสินค้า */}
+                        <div className="flex justify-between items-center bg-red-50 border border-red-200 p-4 rounded-2xl">
+                            <div className="flex items-center gap-2 text-red-700 text-sm font-bold">
+                                <RefreshCw size={20}/>
+                                <span>เครื่องมือจัดการฐานข้อมูล (ใช้เมื่อข้อมูลซ้ำ)</span>
+                            </div>
+                            <button 
+                                onClick={handleCleanupDuplicates}
+                                disabled={loading}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition"
+                            >
+                                <Eraser size={16}/> 🧹 ล้างข้อมูลซ้ำ
+                            </button>
+                        </div>
+
                         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
                             <h3 className="font-black text-xl mb-6 flex items-center gap-2"><Plus className="text-green-500"/> เพิ่มสินค้าใหม่เข้าสต็อก</h3>
                             <form onSubmit={handleAddPart} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -506,7 +586,7 @@ function GarageApp({ signOut, user }) {
                     <input placeholder="ปีจดทะเบียน" className="p-4 bg-gray-50 border-none rounded-xl" value={data.carYear} onChange={e => setData({...data, carYear: e.target.value})}/>
                     <input placeholder="เลขทะเบียนรถ" className="p-4 bg-gray-50 border-none rounded-xl font-bold" value={data.licensePlate} onChange={e => setData({...data, licensePlate: e.target.value})}/>
                     
-                    {/* --- จุดเพิ่ม: ช่องกรอกเบอร์โทรศัพท์ --- */}
+                    {/* --- จุดเพิ่ม: ช่องกรอกเบอร์โทรศัพท์ (มีค่า default จาก Cognito) --- */}
                     <input 
                       placeholder="เบอร์โทรศัพท์ติดต่อ" 
                       className="p-4 bg-gray-50 border-none rounded-xl font-bold" 
