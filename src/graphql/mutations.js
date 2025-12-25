@@ -85,6 +85,7 @@ export const createPart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -103,6 +104,7 @@ export const updatePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -121,6 +123,7 @@ export const deletePart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename

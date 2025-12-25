@@ -27,6 +27,7 @@ export declare type PartCreateFormInputValues = {
     name?: string;
     price?: number;
     isFixed?: boolean;
+    stock?: number;
 };
 export declare type PartCreateFormValidationValues = {
     categoryKey?: ValidationFunction<string>;
@@ -34,6 +35,7 @@ export declare type PartCreateFormValidationValues = {
     name?: ValidationFunction<string>;
     price?: ValidationFunction<number>;
     isFixed?: ValidationFunction<boolean>;
+    stock?: ValidationFunction<number>;
 };
 export declare type PrimitiveOverrideProps<T> = Partial<T> & React.DOMAttributes<HTMLDivElement>;
 export declare type PartCreateFormOverridesProps = {
@@ -43,6 +45,7 @@ export declare type PartCreateFormOverridesProps = {
     name?: PrimitiveOverrideProps<TextFieldProps>;
     price?: PrimitiveOverrideProps<TextFieldProps>;
     isFixed?: PrimitiveOverrideProps<SwitchFieldProps>;
+    stock?: PrimitiveOverrideProps<TextFieldProps>;
 } & EscapeHatchProps;
 export declare type PartCreateFormProps = React.PropsWithChildren<{
     overrides?: PartCreateFormOverridesProps | undefined | null;

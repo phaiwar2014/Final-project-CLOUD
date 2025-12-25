@@ -27,6 +27,7 @@ export declare type PartUpdateFormInputValues = {
     name?: string;
     price?: number;
     isFixed?: boolean;
+    stock?: number;
 };
 export declare type PartUpdateFormValidationValues = {
     categoryKey?: ValidationFunction<string>;
@@ -34,6 +35,7 @@ export declare type PartUpdateFormValidationValues = {
     name?: ValidationFunction<string>;
     price?: ValidationFunction<number>;
     isFixed?: ValidationFunction<boolean>;
+    stock?: ValidationFunction<number>;
 };
 export declare type PrimitiveOverrideProps<T> = Partial<T> & React.DOMAttributes<HTMLDivElement>;
 export declare type PartUpdateFormOverridesProps = {
@@ -43,6 +45,7 @@ export declare type PartUpdateFormOverridesProps = {
     name?: PrimitiveOverrideProps<TextFieldProps>;
     price?: PrimitiveOverrideProps<TextFieldProps>;
     isFixed?: PrimitiveOverrideProps<SwitchFieldProps>;
+    stock?: PrimitiveOverrideProps<TextFieldProps>;
 } & EscapeHatchProps;
 export declare type PartUpdateFormProps = React.PropsWithChildren<{
     overrides?: PartUpdateFormOverridesProps | undefined | null;

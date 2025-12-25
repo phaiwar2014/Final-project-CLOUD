@@ -36,6 +36,7 @@ export default function PartUpdateForm(props) {
     name: "",
     price: "",
     isFixed: false,
+    stock: "",
   };
   const [categoryKey, setCategoryKey] = React.useState(
     initialValues.categoryKey
@@ -46,6 +47,7 @@ export default function PartUpdateForm(props) {
   const [name, setName] = React.useState(initialValues.name);
   const [price, setPrice] = React.useState(initialValues.price);
   const [isFixed, setIsFixed] = React.useState(initialValues.isFixed);
+  const [stock, setStock] = React.useState(initialValues.stock);
   const [errors, setErrors] = React.useState({});
   const resetStateValues = () => {
     const cleanValues = partRecord
@@ -56,6 +58,7 @@ export default function PartUpdateForm(props) {
     setName(cleanValues.name);
     setPrice(cleanValues.price);
     setIsFixed(cleanValues.isFixed);
+    setStock(cleanValues.stock);
     setErrors({});
   };
   const [partRecord, setPartRecord] = React.useState(partModelProp);
@@ -80,6 +83,7 @@ export default function PartUpdateForm(props) {
     name: [{ type: "Required" }],
     price: [{ type: "Required" }],
     isFixed: [{ type: "Required" }],
+    stock: [],
   };
   const runValidationTasks = async (
     fieldName,
@@ -112,6 +116,7 @@ export default function PartUpdateForm(props) {
           name,
           price,
           isFixed,
+          stock: stock ?? null,
         };
         const validationResponses = await Promise.all(
           Object.keys(validations).reduce((promises, fieldName) => {
@@ -177,6 +182,7 @@ export default function PartUpdateForm(props) {
               name,
               price,
               isFixed,
+              stock,
             };
             const result = onChange(modelFields);
             value = result?.categoryKey ?? value;
@@ -205,6 +211,7 @@ export default function PartUpdateForm(props) {
               name,
               price,
               isFixed,
+              stock,
             };
             const result = onChange(modelFields);
             value = result?.categoryName ?? value;
@@ -233,6 +240,7 @@ export default function PartUpdateForm(props) {
               name: value,
               price,
               isFixed,
+              stock,
             };
             const result = onChange(modelFields);
             value = result?.name ?? value;
@@ -265,6 +273,7 @@ export default function PartUpdateForm(props) {
               name,
               price: value,
               isFixed,
+              stock,
             };
             const result = onChange(modelFields);
             value = result?.price ?? value;
@@ -293,6 +302,7 @@ export default function PartUpdateForm(props) {
               name,
               price,
               isFixed: value,
+              stock,
             };
             const result = onChange(modelFields);
             value = result?.isFixed ?? value;
@@ -307,6 +317,39 @@ export default function PartUpdateForm(props) {
         hasError={errors.isFixed?.hasError}
         {...getOverrideProps(overrides, "isFixed")}
       ></SwitchField>
+      <TextField
+        label="Stock"
+        isRequired={false}
+        isReadOnly={false}
+        type="number"
+        step="any"
+        value={stock}
+        onChange={(e) => {
+          let value = isNaN(parseInt(e.target.value))
+            ? e.target.value
+            : parseInt(e.target.value);
+          if (onChange) {
+            const modelFields = {
+              categoryKey,
+              categoryName,
+              name,
+              price,
+              isFixed,
+              stock: value,
+            };
+            const result = onChange(modelFields);
+            value = result?.stock ?? value;
+          }
+          if (errors.stock?.hasError) {
+            runValidationTasks("stock", value);
+          }
+          setStock(value);
+        }}
+        onBlur={() => runValidationTasks("stock", stock)}
+        errorMessage={errors.stock?.errorMessage}
+        hasError={errors.stock?.hasError}
+        {...getOverrideProps(overrides, "stock")}
+      ></TextField>
       <Flex
         justifyContent="space-between"
         {...getOverrideProps(overrides, "CTAFlex")}

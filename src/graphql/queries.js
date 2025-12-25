@@ -60,6 +60,7 @@ export const getPart = /* GraphQL */ `
       name
       price
       isFixed
+      stock
       createdAt
       updatedAt
       __typename
@@ -80,6 +81,7 @@ export const listParts = /* GraphQL */ `
         name
         price
         isFixed
+        stock
         createdAt
         updatedAt
         __typename
