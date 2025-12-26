@@ -136,3 +136,45 @@ export const deletePart = /* GraphQL */ `
     }
   }
 `;
+export const createStoreConfig = /* GraphQL */ `
+  mutation CreateStoreConfig(
+    $input: CreateStoreConfigInput!
+    $condition: ModelStoreConfigConditionInput
+  ) {
+    createStoreConfig(input: $input, condition: $condition) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const updateStoreConfig = /* GraphQL */ `
+  mutation UpdateStoreConfig(
+    $input: UpdateStoreConfigInput!
+    $condition: ModelStoreConfigConditionInput
+  ) {
+    updateStoreConfig(input: $input, condition: $condition) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const deleteStoreConfig = /* GraphQL */ `
+  mutation DeleteStoreConfig(
+    $input: DeleteStoreConfigInput!
+    $condition: ModelStoreConfigConditionInput
+  ) {
+    deleteStoreConfig(input: $input, condition: $condition) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;

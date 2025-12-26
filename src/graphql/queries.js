@@ -95,3 +95,33 @@ export const listParts = /* GraphQL */ `
     }
   }
 `;
+export const getStoreConfig = /* GraphQL */ `
+  query GetStoreConfig($id: ID!) {
+    getStoreConfig(id: $id) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listStoreConfigs = /* GraphQL */ `
+  query ListStoreConfigs(
+    $filter: ModelStoreConfigFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listStoreConfigs(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        blockedDates
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;

@@ -118,3 +118,42 @@ export const onDeletePart = /* GraphQL */ `
     }
   }
 `;
+export const onCreateStoreConfig = /* GraphQL */ `
+  subscription OnCreateStoreConfig(
+    $filter: ModelSubscriptionStoreConfigFilterInput
+  ) {
+    onCreateStoreConfig(filter: $filter) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onUpdateStoreConfig = /* GraphQL */ `
+  subscription OnUpdateStoreConfig(
+    $filter: ModelSubscriptionStoreConfigFilterInput
+  ) {
+    onUpdateStoreConfig(filter: $filter) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const onDeleteStoreConfig = /* GraphQL */ `
+  subscription OnDeleteStoreConfig(
+    $filter: ModelSubscriptionStoreConfigFilterInput
+  ) {
+    onDeleteStoreConfig(filter: $filter) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;

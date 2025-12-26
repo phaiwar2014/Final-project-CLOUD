@@ -170,12 +170,11 @@ const BookingEditModal = ({ booking, isOpen, onClose, onSave }) => {
 const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }) => {
     const [selectedItems, setSelectedItems] = useState([]);
     const [additionalPartId, setAdditionalPartId] = useState("");
-    const [actualMileage, setActualMileage] = useState(""); // 🆕 State สำหรับเลขไมล์จริง
+    const [actualMileage, setActualMileage] = useState("");
     
-    // แปลงข้อมูล Job เป็น State เมื่อเปิด Modal
     useEffect(() => {
         if (isOpen && job) {
-            setActualMileage(job.mileage || ""); // Default เป็นเลขไมล์ที่จองมา
+            setActualMileage(job.mileage || "");
             try {
                 const parsed = JSON.parse(job.selectedItems);
                 let initialItems = [];
@@ -223,7 +222,6 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
         }
     };
 
-    // คำนวณราคาใหม่ (ค่าแรง + ค่าของ)
     const laborCost = (MILEAGE_RULES[job?.mileage]?.hours || 0) * 300;
     const partsCost = selectedItems.reduce((sum, item) => sum + item.price, 0);
     const totalCost = laborCost + partsCost;
@@ -249,7 +247,6 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
                     </div>
                 </div>
 
-                {/* 🆕 ช่องกรอกเลขไมล์จริง */}
                 <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <label className="block text-xs font-black text-blue-600 uppercase mb-2 flex items-center gap-1">
                         <Gauge size={14}/> กรอกเลขไมล์จริงหน้าปัด (Actual Mileage)
@@ -383,7 +380,14 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
 
     try {
       const parsed = JSON.parse(job.selectedItems);
-      const allParts = Object.values(partsCatalog).flatMap(c => c.options);
+      // Flatten parts for lookup
+      const allParts = [];
+      Object.keys(partsCatalog).forEach(key => {
+        const cat = partsCatalog[key];
+        cat.options.forEach(opt => {
+            allParts.push({ ...opt, categoryName: cat.name });
+        });
+      });
 
       // Case 1: New Format with IDs
       if (parsed.ids && Array.isArray(parsed.ids)) {
@@ -527,6 +531,7 @@ function GarageApp({ signOut, user }) {
   // Config UI State
   const [blockedDates, setBlockedDates] = useState([]);
   const [newBlockedDate, setNewBlockedDate] = useState('');
+  const [storeConfigId, setStoreConfigId] = useState(null); // 🆕 เพิ่ม ID ของ Config
 
   // Edit Booking UI State
   const [editBookingModalOpen, setEditBookingModalOpen] = useState(false);
@@ -599,7 +604,6 @@ function GarageApp({ signOut, user }) {
       });
       setPartsCatalog(formattedParts);
 
-      // ดึงฟิลด์ mechanicName เพิ่ม
       const listBookingsQuery = `
         query ListBookings {
             listBookings {
@@ -629,6 +633,26 @@ function GarageApp({ signOut, user }) {
       const myName = user?.attributes?.name || user?.username || "Guest";
       const myHistory = items.filter(b => b.customerName === myName || b.owner === user.username);
       setUserBookings(myHistory.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
+
+      // 3. 🆕 Fetch Store Config (Blocked Dates) - แก้ไขให้ดึงข้อมูลจริง
+      try {
+          const configData = await client.graphql({ query: queries.listStoreConfigs });
+          if (configData.data.listStoreConfigs.items.length > 0) {
+              const cfg = configData.data.listStoreConfigs.items[0];
+              setStoreConfigId(cfg.id);
+              setBlockedDates(cfg.blockedDates || []);
+          } else {
+              // ถ้ายังไม่มี Config ให้สร้างใหม่
+              const newCfg = await client.graphql({
+                  query: mutations.createStoreConfig,
+                  variables: { input: { blockedDates: [] } }
+              });
+              setStoreConfigId(newCfg.data.createStoreConfig.id);
+              setBlockedDates([]);
+          }
+      } catch (e) { 
+          // console.error("Config fetch error:", e); 
+      }
       
     } catch (err) {
       console.error("Fetch error:", err);
@@ -690,6 +714,7 @@ function GarageApp({ signOut, user }) {
       const val = e.target.value;
       if (blockedDates.includes(val)) {
           alert("ขออภัย วันที่นี้ร้านปิดให้บริการ");
+          setData(prev => ({...prev, date: '', time: ''})); // แก้ไขตรงนี้
           return;
       }
       setData(prev => ({...prev, date: val, time: ''}));
@@ -752,7 +777,7 @@ function GarageApp({ signOut, user }) {
                       selectedItems: JSON.stringify({ display: displayObj, ids: idsArr }),
                       totalPrice: finalPrice,
                       mechanicName: user.username,
-                      actualMileage: parseInt(actualMileage) || 0 // 🆕 บันทึกเลขไมล์จริง
+                      actualMileage: parseInt(actualMileage) || 0 
                   } 
               }
           });
@@ -901,16 +926,32 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert("Error: " + e.message); } finally { setLoading(false); }
   };
   
-  // 🆕 Config Handlers
-  const handleBlockDate = () => {
+  // 🆕 Config Handlers (Save to Database)
+  const handleBlockDate = async () => {
       if(newBlockedDate && !blockedDates.includes(newBlockedDate)) {
-          setBlockedDates([...blockedDates, newBlockedDate]);
+          const updatedDates = [...blockedDates, newBlockedDate];
+          setBlockedDates(updatedDates);
           setNewBlockedDate('');
+          
+          if (storeConfigId) {
+              await client.graphql({
+                  query: mutations.updateStoreConfig,
+                  variables: { input: { id: storeConfigId, blockedDates: updatedDates } }
+              });
+          }
       }
   };
 
-  const handleUnblockDate = (dateToRemove) => {
-      setBlockedDates(blockedDates.filter(d => d !== dateToRemove));
+  const handleUnblockDate = async (dateToRemove) => {
+      const updatedDates = blockedDates.filter(d => d !== dateToRemove);
+      setBlockedDates(updatedDates);
+      
+      if (storeConfigId) {
+          await client.graphql({
+              query: mutations.updateStoreConfig,
+              variables: { input: { id: storeConfigId, blockedDates: updatedDates } }
+          });
+      }
   };
 
   // --- USER ACTIONS ---
@@ -1019,7 +1060,7 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
-            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูยน์บริการซ่อมรถยนต์มาตราฐาน</h1>
+            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4">
@@ -1219,10 +1260,8 @@ function GarageApp({ signOut, user }) {
                                                 <div className="text-xs text-slate-400">{b.phoneNumber}</div>
                                             </td>
                                             <td className="p-6">
-                                                <div className="inline-block bg-white border-2 border-slate-800 text-slate-800 px-3 py-1 rounded-lg font-black tracking-wider shadow-sm text-sm transform -rotate-1">
-                                                    {b.licensePlate}
-                                                </div>
-                                                <div className="text-xs text-slate-500 mt-2 font-bold">{b.carBrand} ({b.carYear})</div>
+                                                <div className="font-black">{b.licensePlate}</div>
+                                                <div className="text-xs text-slate-400">{b.carBrand}</div>
                                             </td>
                                             <td className="p-6 text-center"><span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-gray-100">{b.status}</span></td>
                                             <td className="p-6 text-center">

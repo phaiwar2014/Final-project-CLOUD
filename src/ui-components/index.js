@@ -8,4 +8,6 @@ export { default as BookingCreateForm } from "./BookingCreateForm";
 export { default as BookingUpdateForm } from "./BookingUpdateForm";
 export { default as PartCreateForm } from "./PartCreateForm";
 export { default as PartUpdateForm } from "./PartUpdateForm";
+export { default as StoreConfigCreateForm } from "./StoreConfigCreateForm";
+export { default as StoreConfigUpdateForm } from "./StoreConfigUpdateForm";
 export { default as studioTheme } from "./studioTheme";
