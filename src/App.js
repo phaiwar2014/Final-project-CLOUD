@@ -520,7 +520,7 @@ function GarageApp({ signOut, user }) {
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
   const [adminDateFilter, setAdminDateFilter] = useState('');
-  const [lowStockThreshold, setLowStockThreshold] = useState(5);
+  const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
   // Accounting UI State
   const [accountingViewType, setAccountingViewType] = useState('monthly'); 
