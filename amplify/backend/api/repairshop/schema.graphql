@@ -1,25 +1,43 @@
-type Booking @model @auth(rules: [{ allow: private }]) {
+# ตารางเก็บข้อมูลการจอง (Booking)
+type Booking @model @auth(rules: [
+  { allow: private }
+]) {
   id: ID!
   customerName: String!
   phoneNumber: String!
   carBrand: String!
   carYear: String!
   licensePlate: String!
-  mileage: Int!
-  selectedItems: String!
+  mileage: Int!           
+  selectedItems: String!  
   totalPrice: Float!
   bookingDate: AWSDate!
   bookingTime: AWSTime!
-  status: String
-  mechanicName: String # 🟢 ต้องมีบรรทัดนี้ เพื่อเก็บชื่อช่าง
+  status: String          
+  mechanicName: String    
+  actualMileage: Int      
 }
 
-type Part @model @auth(rules: [{ allow: public }, { allow: private }]) {
+# ตารางเก็บสินค้า (Part)
+type Part @model @auth(rules: [
+  { allow: public }, 
+  { allow: private }
+]) {
   id: ID!
-  categoryKey: String!
-  categoryName: String!
-  name: String!
-  price: Int!
-  isFixed: Boolean!
-  stock: Int # 🟢 ต้องมีบรรทัดนี้ เพื่อเก็บสต็อก
+  categoryKey: String!    
+  categoryName: String!   
+  name: String!           
+  price: Int!             
+  isFixed: Boolean!       
+  stock: Int              
+}
+
+# 🆕 ตารางตั้งค่าร้าน (StoreConfig)
+# เก็บข้อมูลการตั้งค่าทั่วไป เช่น วันหยุด
+type StoreConfig @model @auth(rules: [
+  { allow: public }, # ลูกค้าต้องอ่านได้ (เพื่อเช็คว่าวันไหนปิด)
+  { allow: private } # Admin แก้ไขได้
+]) {
+  id: ID!
+  blockedDates: [String] # เก็บรายการวันที่ปิดร้าน เช่น ["2023-12-25", "2024-01-01"]
 }

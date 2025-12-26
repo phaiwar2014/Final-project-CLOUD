@@ -17,6 +17,7 @@ export const getBooking = /* GraphQL */ `
       bookingTime
       status
       mechanicName
+      actualMileage
       createdAt
       updatedAt
       __typename
@@ -44,6 +45,7 @@ export const listBookings = /* GraphQL */ `
         bookingTime
         status
         mechanicName
+        actualMileage
         createdAt
         updatedAt
         __typename
@@ -84,6 +86,36 @@ export const listParts = /* GraphQL */ `
         price
         isFixed
         stock
+        createdAt
+        updatedAt
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+export const getStoreConfig = /* GraphQL */ `
+  query GetStoreConfig($id: ID!) {
+    getStoreConfig(id: $id) {
+      id
+      blockedDates
+      createdAt
+      updatedAt
+      __typename
+    }
+  }
+`;
+export const listStoreConfigs = /* GraphQL */ `
+  query ListStoreConfigs(
+    $filter: ModelStoreConfigFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listStoreConfigs(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        blockedDates
         createdAt
         updatedAt
         __typename
