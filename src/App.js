@@ -27,9 +27,9 @@ try {
 const client = generateClient();
 
 // --- 🔒 CONFIGURATION: ROLES & USERS ---
-const ADMIN_LIST = ['admin', 'phai', 'phaiw', 'phai2', 'admin@example.com']; 
-const MECHANIC_LIST = ['phais', 'mechanic01', 'mechanic02', 'karn']; 
-const ACCOUNTANT_LIST = ['phaih', 'account01', 'aj']; 
+const ADMIN_LIST = ['phai', 'karn', 'aj']; 
+const MECHANIC_LIST = ['machanic']; 
+const ACCOUNTANT_LIST = ['account01']; 
 
 const INITIAL_SEED_DATA = [
   { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false, stock: 50 },
@@ -178,7 +178,6 @@ const MechanicJobModal = ({ job, isOpen, onClose, onConfirmStart, partsCatalog }
             try {
                 const parsed = JSON.parse(job.selectedItems);
                 let initialItems = [];
-                // Flatten parts catalog and include categoryName
                 const allParts = [];
                 Object.keys(partsCatalog).forEach(key => {
                     const cat = partsCatalog[key];
@@ -380,7 +379,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
 
     try {
       const parsed = JSON.parse(job.selectedItems);
-      // Flatten parts for lookup
       const allParts = [];
       Object.keys(partsCatalog).forEach(key => {
         const cat = partsCatalog[key];
@@ -389,7 +387,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
         });
       });
 
-      // Case 1: New Format with IDs
       if (parsed.ids && Array.isArray(parsed.ids)) {
         parsedItems = parsed.ids.map(id => {
           const part = allParts.find(p => p.id === id);
@@ -406,7 +403,6 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
           };
         });
       } else {
-        // Case 2: Old Format (Text only) - Fuzzy Match Logic
         const displayData = parsed.display || parsed;
         parsedItems = Object.entries(displayData).map(([key, val]) => {
           const nameMatch = val.match(/^(.*?)\s\(\d+\)$/);
@@ -451,12 +447,10 @@ const MechanicJobCard = ({ job, partsCatalog, onUpdateStatus }) => {
             {parsedItems.map((item, idx) => (
               <li key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
                 <span className={`text-slate-700 font-medium ${item.isMissing ? 'text-red-500' : ''}`}>
-                    {/* แก้ไขการแสดงผลตามที่ขอ: หมวดหมู่ : ชื่อสินค้า */}
                     <span className="text-xs text-gray-400 mr-1">{item.categoryName} :</span> {item.name}
                 </span>
                 {item.stock !== null ? (
                   <span className={`text-[10px] font-bold px-2 py-1 rounded ${item.stock === 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                    {/* เพิ่มช่องว่างตามที่ขอ */}
                     <span className="inline-block w-4"></span>
                     {item.stock === 0 ? 'ของขาด Stock' : `มีในสต็อก: ${item.stock}`}
                   </span>
@@ -507,44 +501,37 @@ function GarageApp({ signOut, user }) {
   const [userBookings, setUserBookings] = useState([]); 
   const [isInitializing, setIsInitializing] = useState(false);
   
-  // State หลัก
   const [data, setData] = useState({ 
     mileage: '', carBrand: '', carYear: '', licensePlate: '', 
     phoneNumber: user?.attributes?.phone_number || '', 
     selectedParts: {}, date: '', time: '' 
   });
 
-  // Admin UI State
   const [adminTab, setAdminTab] = useState('bookings'); 
   const [newPart, setNewPart] = useState({ categoryKey: 'engineOil', name: '', price: '', stock: '10' });
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('ALL');
   const [adminBookingSearch, setAdminBookingSearch] = useState('');
   const [adminDateFilter, setAdminDateFilter] = useState('');
-  const [lowStockThreshold, setLowStockThreshold] = useState(5);
+  const [lowStockThreshold, setLowStockThreshold] = useState(10);
 
-  // Accounting UI State
   const [accountingViewType, setAccountingViewType] = useState('monthly'); 
   const [accountingDate, setAccountingDate] = useState(new Date().toISOString().substring(0, 7)); 
   const [accountingModalOpen, setAccountingModalOpen] = useState(false);
   const [selectedJobForAccounting, setSelectedJobForAccounting] = useState(null);
 
-  // Config UI State
   const [blockedDates, setBlockedDates] = useState([]);
   const [newBlockedDate, setNewBlockedDate] = useState('');
-  const [storeConfigId, setStoreConfigId] = useState(null); // 🆕 เพิ่ม ID ของ Config
+  const [storeConfigId, setStoreConfigId] = useState(null);
 
-  // Edit Booking UI State
   const [editBookingModalOpen, setEditBookingModalOpen] = useState(false);
   const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
 
   const [slotStatus, setSlotStatus] = useState(null);
   const [checkingSlots, setCheckingSlots] = useState(false);
 
-  // Mechanic Modal State
   const [mechanicModalOpen, setMechanicModalOpen] = useState(false);
   const [selectedJobForMechanic, setSelectedJobForMechanic] = useState(null);
 
-  // --- 👮‍♂️ CHECK ROLES & IDENTIFY USER ---
   const username = user?.username || "Unknown";
   const userEmail = user?.attributes?.email;
   
@@ -574,7 +561,6 @@ function GarageApp({ signOut, user }) {
       }
   };
 
-  // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
     try {
       if (!config) return; 
@@ -634,7 +620,6 @@ function GarageApp({ signOut, user }) {
       const myHistory = items.filter(b => b.customerName === myName || b.owner === user.username);
       setUserBookings(myHistory.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)));
 
-      // 3. 🆕 Fetch Store Config (Blocked Dates) - แก้ไขให้ดึงข้อมูลจริง
       try {
           const configData = await client.graphql({ query: queries.listStoreConfigs });
           if (configData.data.listStoreConfigs.items.length > 0) {
@@ -642,7 +627,6 @@ function GarageApp({ signOut, user }) {
               setStoreConfigId(cfg.id);
               setBlockedDates(cfg.blockedDates || []);
           } else {
-              // ถ้ายังไม่มี Config ให้สร้างใหม่
               const newCfg = await client.graphql({
                   query: mutations.createStoreConfig,
                   variables: { input: { blockedDates: [] } }
@@ -650,9 +634,7 @@ function GarageApp({ signOut, user }) {
               setStoreConfigId(newCfg.data.createStoreConfig.id);
               setBlockedDates([]);
           }
-      } catch (e) { 
-          // console.error("Config fetch error:", e); 
-      }
+      } catch (e) { }
       
     } catch (err) {
       console.error("Fetch error:", err);
@@ -663,10 +645,9 @@ function GarageApp({ signOut, user }) {
     fetchData();
   }, [fetchData]);
 
-  // --- CAPACITY LOGIC ---
   const checkAvailability = useCallback(async (selectedDate) => {
     if (!selectedDate) return;
-    if (blockedDates.includes(selectedDate)) return; // Don't check if blocked
+    if (blockedDates.includes(selectedDate)) return; 
 
     setCheckingSlots(true);
     setSlotStatus(null); 
@@ -714,18 +695,16 @@ function GarageApp({ signOut, user }) {
       const val = e.target.value;
       if (blockedDates.includes(val)) {
           alert("ขออภัย วันที่นี้ร้านปิดให้บริการ");
-          setData(prev => ({...prev, date: '', time: ''})); // แก้ไขตรงนี้
+          setData(prev => ({...prev, date: '', time: ''}));
           return;
       }
       setData(prev => ({...prev, date: val, time: ''}));
   };
 
-  // --- ACTIONS ---
   const handleUpdateStatus = async (id, newStatus) => {
     const booking = allBookings.find(b => b.id === id);
     if (!booking) return;
 
-    // Open Modals based on status
     if (newStatus === 'IN_PROGRESS') {
         setSelectedJobForMechanic(booking);
         setMechanicModalOpen(true);
@@ -793,7 +772,6 @@ function GarageApp({ signOut, user }) {
       }
   };
 
-  // 🆕 Accounting Close Job
   const handleAccountingCloseJob = async (jobId, finalPrice) => {
       setLoading(true);
       try {
@@ -817,13 +795,11 @@ function GarageApp({ signOut, user }) {
       }
   };
 
-  // 🆕 Handle Edit Click (Open Modal)
   const handleEditClick = (booking) => {
       setSelectedJobForEdit(booking);
       setEditBookingModalOpen(true);
   };
 
-  // 🆕 Handle Edit Save
   const handleEditSave = async (id, updatedData) => {
       setLoading(true);
       try {
@@ -926,7 +902,6 @@ function GarageApp({ signOut, user }) {
     } catch (e) { alert("Error: " + e.message); } finally { setLoading(false); }
   };
   
-  // 🆕 Config Handlers (Save to Database)
   const handleBlockDate = async () => {
       if(newBlockedDate && !blockedDates.includes(newBlockedDate)) {
           const updatedDates = [...blockedDates, newBlockedDate];
@@ -953,8 +928,6 @@ function GarageApp({ signOut, user }) {
           });
       }
   };
-
-  // --- USER ACTIONS ---
 
   const handleMileage = (km) => {
     const parts = {};
@@ -992,6 +965,8 @@ function GarageApp({ signOut, user }) {
 
     const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
     const finalPhoneNumber = data.phoneNumber || user?.attributes?.phone_number || "-";
+    // 🆕 ADDED: Retrieve finalEmail from Cognito
+    const finalEmail = user?.attributes?.email;
 
     const input = {
       customerName: finalCustomerName,
@@ -1008,10 +983,35 @@ function GarageApp({ signOut, user }) {
     };
 
     try {
+      // 1. Save to Database
       await client.graphql({ query: mutations.createBooking, variables: { input } });
+
+      // 2. 🆕 Trigger Email Confirmation API
+      if (finalEmail) {
+        try {
+          await fetch('https://bta2m6zrqk.execute-api.ap-southeast-2.amazonaws.com/prod/sendConfirmationEmail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: finalEmail,
+              username: finalCustomerName,
+              date: data.date,
+              time: data.time,
+              license: data.licensePlate
+            })
+          });
+          console.log("Confirmation email sent to:", finalEmail);
+        } catch (emailErr) {
+          console.error("Email failed to send, but booking was saved:", emailErr);
+        }
+      }
+
       setPage('success');
-    } catch (err) { alert(err.message); }
-    finally { setLoading(false); }
+    } catch (err) { 
+      alert(err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const getLowStockItems = () => {
@@ -1026,7 +1026,6 @@ function GarageApp({ signOut, user }) {
     return lowItems;
   };
 
-  // --- HELPER: Parse Item List String ---
   const parseItemString = (jsonString) => {
     try {
         const parsed = JSON.parse(jsonString);
@@ -1036,8 +1035,6 @@ function GarageApp({ signOut, user }) {
         return ["รายละเอียดสินค้าไม่ถูกต้อง"];
     }
   };
-
-  // --- VIEWS ---
 
   if (page === 'landing') {
     return (
@@ -1060,7 +1057,7 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
-            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
+            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการซ่อมรถยนต์</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4">
@@ -1182,7 +1179,6 @@ function GarageApp({ signOut, user }) {
                     <h2 className="font-bold text-xl">Staff Control Center</h2>
                 </div>
                 <div className="flex bg-slate-800 p-1 rounded-xl min-w-max ml-4">
-                    {/* เมนูสำหรับทุกคนที่เป็น Staff ให้เห็นคิวงาน */}
                     {isStaff && (
                         <button onClick={() => setAdminTab('bookings')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'bookings' ? 'bg-orange-500 text-white' : 'text-slate-400'}`}>
                             <ClipboardList size={18}/> คิวงานลูกค้า
@@ -1208,7 +1204,6 @@ function GarageApp({ signOut, user }) {
                             </button>
                         </>
                     )}
-                     {/* 🆕 Config Tab for Admin Only */}
                     {isAdmin && (
                         <button onClick={() => setAdminTab('config')} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${adminTab === 'config' ? 'bg-purple-500 text-white' : 'text-slate-400'}`}>
                             <Settings size={18}/> ตั้งค่า
@@ -1218,7 +1213,6 @@ function GarageApp({ signOut, user }) {
             </div>
 
             <div className="max-w-6xl mx-auto p-4 md:p-8">
-                {/* --- 1. หน้าคิวงาน (Reception) --- */}
                 {adminTab === 'bookings' && isStaff && (
                     <div className="space-y-6">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border-l-4 border-blue-500 mb-6">
@@ -1266,7 +1260,6 @@ function GarageApp({ signOut, user }) {
                                             <td className="p-6 text-center"><span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-gray-100">{b.status}</span></td>
                                             <td className="p-6 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    {/* ✏️ ปุ่มแก้ไข (สำหรับ Admin) */}
                                                     {isAdmin && (
                                                         <button 
                                                             onClick={() => handleEditClick(b)} 
@@ -1290,7 +1283,6 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
 
-                {/* --- 2. หน้าช่าง (Mechanic) --- */}
                 {adminTab === 'mechanic' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm mb-4">
@@ -1309,10 +1301,8 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
 
-                {/* --- 5. หน้าบัญชี (Accounting) 🆕 - เพิ่มตัวเลือกรายวัน/รายเดือน และตารางละเอียด --- */}
                 {adminTab === 'accounting' && (isAdmin || isAccountant) && (
                      <div className="space-y-6">
-                        {/* 📊 ส่วนควบคุมการกรอง (รายวัน/รายเดือน) */}
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-4">
                                 <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -1354,7 +1344,7 @@ function GarageApp({ signOut, user }) {
                                                 <th className="p-4">ลูกค้า</th>
                                                 <th className="p-4">รายการอะไหล่ที่ใช้จริง</th>
                                                 <th className="p-4">ช่างผู้ซ่อม</th>
-                                                <th className="p-4">ไมล์จริง</th> {/* 🆕 เพิ่มคอลัมน์ไมล์จริง */}
+                                                <th className="p-4">ไมล์จริง</th> 
                                                 <th className="p-4 text-right">ยอดชำระ</th>
                                                 <th className="p-4 text-center">สถานะ</th>
                                                 <th className="p-4 text-center">จัดการ</th>
@@ -1403,8 +1393,7 @@ function GarageApp({ signOut, user }) {
                      </div>
                 )}
 
-                 {/* --- 4. 🆕 สินค้าใกล้หมด (Low Stock) --- */}
-                 {adminTab === 'lowstock' && (isAdmin || isMechanic) && (
+                {adminTab === 'lowstock' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="bg-red-50 p-6 rounded-3xl border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div>
@@ -1455,7 +1444,6 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
 
-                {/* --- 3. จัดการสินค้า (Inventory) --- */}
                 {adminTab === 'parts' && (isAdmin || isMechanic) && (
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl">
@@ -1531,7 +1519,6 @@ function GarageApp({ signOut, user }) {
                     </div>
                 )}
                 
-                {/* --- 6. 🆕 ตั้งค่า (Config) --- */}
                 {adminTab === 'config' && isAdmin && (
                     <div className="space-y-6">
                         <div className="bg-purple-50 p-6 rounded-3xl border border-purple-100">
