@@ -17,6 +17,7 @@ export const getBooking = /* GraphQL */ `
       bookingTime
       status
       mechanicName
+      actualMileage
       createdAt
       updatedAt
       __typename
@@ -44,6 +45,7 @@ export const listBookings = /* GraphQL */ `
         bookingTime
         status
         mechanicName
+        actualMileage
         createdAt
         updatedAt
         __typename

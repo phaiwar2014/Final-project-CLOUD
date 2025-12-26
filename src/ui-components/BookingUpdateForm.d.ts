@@ -34,6 +34,7 @@ export declare type BookingUpdateFormInputValues = {
     bookingTime?: string;
     status?: string;
     mechanicName?: string;
+    actualMileage?: number;
 };
 export declare type BookingUpdateFormValidationValues = {
     customerName?: ValidationFunction<string>;
@@ -48,6 +49,7 @@ export declare type BookingUpdateFormValidationValues = {
     bookingTime?: ValidationFunction<string>;
     status?: ValidationFunction<string>;
     mechanicName?: ValidationFunction<string>;
+    actualMileage?: ValidationFunction<number>;
 };
 export declare type PrimitiveOverrideProps<T> = Partial<T> & React.DOMAttributes<HTMLDivElement>;
 export declare type BookingUpdateFormOverridesProps = {
@@ -64,6 +66,7 @@ export declare type BookingUpdateFormOverridesProps = {
     bookingTime?: PrimitiveOverrideProps<TextFieldProps>;
     status?: PrimitiveOverrideProps<TextFieldProps>;
     mechanicName?: PrimitiveOverrideProps<TextFieldProps>;
+    actualMileage?: PrimitiveOverrideProps<TextFieldProps>;
 } & EscapeHatchProps;
 export declare type BookingUpdateFormProps = React.PropsWithChildren<{
     overrides?: BookingUpdateFormOverridesProps | undefined | null;
