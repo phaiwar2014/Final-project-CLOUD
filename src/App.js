@@ -1015,7 +1015,7 @@ const submitBooking = async () => {
       // 2. 🆕 Trigger Email Confirmation via API Gateway
       if (finalEmail) {
         try {
-          await fetch('YOUR_API_GATEWAY_URL_FROM_STEP_5', {
+          await fetch('https://bta2m6zrqk.execute-api.ap-southeast-2.amazonaws.com/prod', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
