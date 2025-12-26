@@ -1019,7 +1019,7 @@ function GarageApp({ signOut, user }) {
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 max-w-2xl">
             <Car size={80} className="text-slate-300 mx-auto mb-6"/>
-            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูนย์บริการ RepairShop sexy</h1>
+            <h1 className="text-3xl font-bold mb-4 text-slate-800">ศูยน์บริการซ่อมรถยนต์มาตราฐาน</h1>
             <p className="text-slate-500 mb-10 text-lg">จองคิวออนไลน์ง่ายๆ เช็คตารางงานช่างได้ทันที พร้อมเลือกอะไหล่คุณภาพตามงบประมาณของคุณ</p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
                 <button onClick={() => setPage('select')} className="bg-orange-500 text-white px-12 py-5 rounded-2xl text-2xl font-black shadow-2xl hover:bg-orange-600 transform hover:scale-105 transition flex items-center gap-4">
