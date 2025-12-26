@@ -977,7 +977,7 @@ function GarageApp({ signOut, user }) {
     return { parts: pPrice, labor, total: pPrice + labor };
   };
 
-  const submitBooking = async () => {
+const submitBooking = async () => {
     setLoading(true);
     const total = calcTotal();
     const formattedItems = {};
@@ -989,6 +989,56 @@ function GarageApp({ signOut, user }) {
             itemIds.push(opt.id);
         }
     });
+
+    const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
+    const finalPhoneNumber = data.phoneNumber || user?.attributes?.phone_number || "-";
+    const finalEmail = user?.attributes?.email; // Get email from Cognito profile
+
+    const input = {
+      customerName: finalCustomerName,
+      phoneNumber: finalPhoneNumber,
+      carBrand: data.carBrand,
+      carYear: data.carYear,
+      licensePlate: data.licensePlate,
+      mileage: parseInt(data.mileage),
+      selectedItems: JSON.stringify({ display: formattedItems, ids: itemIds }),
+      totalPrice: total.total,
+      bookingDate: data.date,
+      bookingTime: data.time === '08:00' ? '08:00:00' : '13:00:00',
+      status: "PENDING"
+    };
+
+    try {
+      // 1. Save to Database (GraphQL)
+      await client.graphql({ query: mutations.createBooking, variables: { input } });
+
+      // 2. 🆕 Trigger Email Confirmation via API Gateway
+      if (finalEmail) {
+        try {
+          await fetch('https://bta2m6zrqk.execute-api.ap-southeast-2.amazonaws.com/prod', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: finalEmail,
+              username: finalCustomerName,
+              date: data.date,
+              time: data.time,
+              license: data.licensePlate
+            })
+          });
+          console.log("Confirmation email sent to:", finalEmail);
+        } catch (emailErr) {
+          console.error("Email failed to send, but booking was saved:", emailErr);
+        }
+      }
+
+      setPage('success');
+    } catch (err) { 
+      alert(err.message); 
+    } finally { 
+      setLoading(false); 
+    }
+  };
 
     const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
     const finalPhoneNumber = data.phoneNumber || user?.attributes?.phone_number || "-";
