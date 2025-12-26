@@ -27,9 +27,9 @@ try {
 const client = generateClient();
 
 // --- 🔒 CONFIGURATION: ROLES & USERS ---
-const ADMIN_LIST = ['admin', 'phai', 'phaiw', 'phai2', 'admin@example.com']; 
-const MECHANIC_LIST = ['phais', 'mechanic01', 'mechanic02', 'karn']; 
-const ACCOUNTANT_LIST = ['phaih', 'account01', 'aj']; 
+const ADMIN_LIST = ['phai', 'karn', 'aj']; 
+const MECHANIC_LIST = ['machanic1']; 
+const ACCOUNTANT_LIST = ['account1']; 
 
 const INITIAL_SEED_DATA = [
   { categoryKey: 'engineOil', categoryName: 'น้ำมันเครื่อง', name: 'Eneos X', price: 1000, isFixed: false, stock: 50 },
