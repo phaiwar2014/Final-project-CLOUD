@@ -27,7 +27,7 @@ try {
 const client = generateClient();
 
 // --- 🔒 CONFIGURATION: ROLES & USERS ---
-const ADMIN_LIST = ['phai', 'karn', 'anthonyapexth@gmail.com']; 
+const ADMIN_LIST = ['phai', 'karn', 'aj']; 
 const MECHANIC_LIST = ['machanic']; 
 const ACCOUNTANT_LIST = ['account01']; 
 
@@ -965,8 +965,10 @@ function GarageApp({ signOut, user }) {
 
     const finalCustomerName = user?.attributes?.name || user?.username || "Guest";
     const finalPhoneNumber = data.phoneNumber || user?.attributes?.phone_number || "-";
-    // 🆕 ADDED: Retrieve finalEmail from Cognito
-    const finalEmail = user?.attributes?.email;
+    
+    // 🛠️ IMMEDIATE BYPASS: Use user email if available, otherwise use your verified email
+    // This ensures 'finalEmail' is never undefined, so the fetch call always runs.
+    const finalEmail = user?.attributes?.email || "anthonyapexth@gmail.com";
 
     const input = {
       customerName: finalCustomerName,
@@ -983,32 +985,32 @@ function GarageApp({ signOut, user }) {
     };
 
     try {
-      // 1. Save to Database
+      // 1. Save to Database (GraphQL)
       await client.graphql({ query: mutations.createBooking, variables: { input } });
 
-      // 2. 🆕 Trigger Email Confirmation API
-      if (finalEmail) {
-        try {
-          await fetch('https://bta2m6zrqk.execute-api.ap-southeast-2.amazonaws.com/prod/sendConfirmationEmail', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: finalEmail,
-              username: finalCustomerName,
-              date: data.date,
-              time: data.time,
-              license: data.licensePlate
-            })
-          });
-          console.log("Confirmation email sent to:", finalEmail);
-        } catch (emailErr) {
-          console.error("Email failed to send, but booking was saved:", emailErr);
-        }
+      // 2. Trigger Email API (This will now run regardless of Cognito status)
+      console.log("Attempting to send email to:", finalEmail);
+      
+      const response = await fetch('https://bta2m6zrqk.execute-api.ap-southeast-2.amazonaws.com/prod/sendConfirmationEmail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: finalEmail,
+          username: finalCustomerName,
+          date: data.date,
+          time: data.time,
+          license: data.licensePlate
+        })
+      });
+
+      if (!response.ok) {
+        console.warn("Email API responded with an error, check CORS or Lambda logs.");
       }
 
       setPage('success');
     } catch (err) { 
-      alert(err.message); 
+      console.error("Booking process error:", err);
+      alert("เกิดข้อผิดพลาด: " + err.message); 
     } finally { 
       setLoading(false); 
     }
